@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Hireflow.Api/Hireflow.Api.csproj" />
+  <Project Path="Hireflow.Application/Hireflow.Application.csproj" />
+  <Project Path="Hireflow.Domain/Hireflow.Domain.csproj" />
+  <Project Path="Hireflow.Infrastructure/Hireflow.Infrastructure.csproj" />
+  <Project Path="Hireflow.Tests/Hireflow.Tests.csproj" />
+</Solution>
