@@ -1,6 +1,8 @@
 using Hireflow.Application.Auth;
+using Hireflow.Application.Workspaces;
 using Hireflow.Infrastructure.Identity;
 using Hireflow.Infrastructure.Persistence;
+using Hireflow.Infrastructure.Workspaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -51,6 +53,7 @@ public static class DependencyInjection
             .AddSignInManager();
 
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IWorkspaceService, WorkspaceService>();
 
         return services;
     }

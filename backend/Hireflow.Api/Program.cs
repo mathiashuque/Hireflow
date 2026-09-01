@@ -1,4 +1,5 @@
 using Hireflow.Api.Authentication;
+using Hireflow.Application.Common;
 using Hireflow.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,6 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHireflowAuthentication(builder.Environment);
 builder.Services.AddHireflowAntiforgery(builder.Environment);
