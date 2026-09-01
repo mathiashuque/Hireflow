@@ -163,6 +163,24 @@ With the stack running (`docker compose up -d --build`) and migrations applied:
 3. Reload the page — the session is restored via `GET /api/auth/me`.
 4. Use **Log out**, then log back in at `/login` with the same credentials.
 
+### Seeding multi-role dev accounts
+
+`scripts/seed-dev-accounts.sh` drives the real HTTP API (register, CSRF, workspace
+creation, invitations, job creation) to build a disposable Owner/Recruiter/Interviewer
+fixture for manual testing. Run it once against a fresh database, after migrations are
+applied:
+
+```bash
+docker compose up -d --build
+dotnet ef database update --project backend/Hireflow.Infrastructure --startup-project backend/Hireflow.Api
+./scripts/seed-dev-accounts.sh
+```
+
+It creates `owner@example.com`, `recruiter@example.com`, and `interviewer@example.com`
+(all with the dev-only password printed by the script), a workspace they share, an Open
+job (candidate intake enabled), and a Draft job (intake disabled). Requires `curl` and
+`jq`. Not idempotent — rerun it only against a database you've reset.
+
 ## Workspaces
 
 A workspace is Hireflow's tenant: job openings, candidates, and hiring activity
@@ -278,6 +296,53 @@ last-read response. It's backed by PostgreSQL's `xmin` system column rather than
 a hand-maintained counter, so any concurrent edit changes it automatically. A
 stale `version` is rejected with `409` instead of silently overwriting a newer
 change; the client is expected to reload the job and retry.
+
+## Candidates
+
+A candidate always belongs to exactly one job opening, which always belongs to
+exactly one workspace; every read and write is scoped by workspace ID plus job
+or candidate ID at the database query. The database itself enforces that a
+candidate's job belongs to the same workspace, via a composite foreign key on
+`(WorkspaceId, JobOpeningId)` against a matching alternate key on `JobOpening`
+— not only an application-level check.
+
+Permissions:
+
+- **Owner** and **Recruiter** can add candidates to an **Open** job and edit
+  name/email on any candidate regardless of the job's current status.
+- **Interviewer** can list and view candidates but gets `403` from every
+  mutation.
+
+A candidate can only be added while its job is **Open**; adding to a Draft or
+Closed job returns a `409` domain conflict. New candidates always start in the
+**Applied** stage — the create/edit contracts never accept a caller-selected
+stage. The predefined stages are Applied, Screening, Interview, Offer, and
+Rejected; moving a candidate between stages is not implemented in this slice.
+
+Email uniqueness is enforced per job (case-insensitive, using the same
+normalization as Identity account emails) via a PostgreSQL unique index on
+`(WorkspaceId, JobOpeningId, NormalizedEmail)`. The same person may appear in a
+different job or a different workspace. The constraint is authoritative under
+concurrent requests: a race that both pass the application-level duplicate
+check is still caught by the database and translated into a `409`, so at most
+one candidate is ever persisted.
+
+Endpoints (all require workspace membership; authentication alone is not enough):
+
+- `POST /api/workspaces/{workspaceId}/jobs/{jobId}/candidates` — Owner/Recruiter;
+  adds a candidate to an Open job.
+- `GET /api/workspaces/{workspaceId}/jobs/{jobId}/candidates` — any member;
+  supports an optional `?stage=Applied|Screening|Interview|Offer|Rejected`
+  filter, ordered by most recently updated then ID.
+- `GET /api/workspaces/{workspaceId}/candidates/{candidateId}` — any member.
+- `PATCH /api/workspaces/{workspaceId}/candidates/{candidateId}` — Owner/Recruiter;
+  edits name/email using the same `xmin`-backed optimistic-concurrency `version`
+  field as job openings. Stage, job, workspace, creator, and creation time cannot
+  be changed through this contract.
+
+Candidate name/email are treated as personal data: they are never written to
+routine application logs, and a guessed or cross-tenant workspace/job/candidate
+ID returns the same non-enumerating `404` as a nonexistent resource.
 
 ## License
 
