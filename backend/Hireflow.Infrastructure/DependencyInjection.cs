@@ -1,4 +1,7 @@
+using Hireflow.Application.Auth;
+using Hireflow.Infrastructure.Identity;
 using Hireflow.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +25,32 @@ public static class DependencyInjection
 
         services.AddDbContext<HireflowDbContext>(options =>
             options.UseNpgsql(connectionString));
+
+        services.AddSingleton(TimeProvider.System);
+
+        services
+            .AddIdentityCore<HireflowUser>(options =>
+            {
+                // Rely on Identity's built-in password hashing and validation instead of
+                // hand-written credential rules.
+                options.Password.RequiredLength = 8;
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequiredUniqueChars = 4;
+
+                options.User.RequireUniqueEmail = true;
+
+                // Email confirmation, lockout UI, and MFA are explicitly out of scope
+                // for this authentication foundation slice.
+                options.SignIn.RequireConfirmedAccount = false;
+            })
+            .AddClaimsPrincipalFactory<HireflowUserClaimsPrincipalFactory>()
+            .AddEntityFrameworkStores<HireflowDbContext>()
+            .AddSignInManager();
+
+        services.AddScoped<IAuthService, AuthService>();
 
         return services;
     }

@@ -1,3 +1,4 @@
+using Hireflow.Api.Authentication;
 using Hireflow.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,19 +7,30 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddHireflowAuthentication(builder.Environment);
+builder.Services.AddHireflowAntiforgery(builder.Environment);
+builder.Services.AddHireflowCors(builder.Configuration);
+builder.Services.AddProblemDetails();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
+app.UseCors(HireflowCorsServiceCollectionExtensions.PolicyName);
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+
+public partial class Program;
