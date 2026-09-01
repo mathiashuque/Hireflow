@@ -163,6 +163,39 @@ With the stack running (`docker compose up -d --build`) and migrations applied:
 3. Reload the page — the session is restored via `GET /api/auth/me`.
 4. Use **Log out**, then log back in at `/login` with the same credentials.
 
+## Workspaces
+
+A workspace is Hireflow's tenant: job openings, candidates, and hiring activity
+(added in later slices) all belong to exactly one workspace. Every workspace read
+or write is checked against the caller's membership on the backend — the frontend
+never decides access on its own. An authenticated user who is not a member of a
+requested workspace receives the same `404` as a nonexistent workspace, so
+workspace existence is never observable across the tenant boundary.
+
+Roles, assigned per membership rather than as a global account role:
+
+- **Owner** — the workspace's creator; currently the only role this slice grants.
+- **Recruiter** and **Interviewer** — reserved for future invitation and
+  role-management slices; not yet assignable.
+
+Endpoints (all require authentication):
+
+- `POST /api/workspaces` — create a workspace from a required name and optional
+  slug; the caller becomes its sole Owner in the same transaction as the
+  workspace row. A slug collision (from an explicit slug or one derived from the
+  name) is resolved with a distinct suffixed slug rather than failing or
+  overwriting the existing workspace.
+- `GET /api/workspaces` — the caller's workspaces, with their role in each,
+  ordered by name then id.
+- `GET /api/workspaces/{workspaceId}` — a workspace's detail, including the
+  caller's role. `404` if it doesn't exist or the caller isn't a member.
+- `GET /api/workspaces/{workspaceId}/members` — a workspace's members (user id,
+  display name, role, joined timestamp), ordered by joined time then user id.
+  Same non-enumerating `404` as above for a nonmember.
+
+`POST /api/workspaces` is state-changing and cookie-authenticated, so it requires
+the same CSRF proof described above.
+
 ## License
 
 This project is proprietary. Copying, redistribution, modification, or use
