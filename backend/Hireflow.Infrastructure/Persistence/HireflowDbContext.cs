@@ -1,3 +1,4 @@
+using Hireflow.Domain.Jobs;
 using Hireflow.Domain.Workspaces;
 using Hireflow.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -23,6 +24,8 @@ public sealed class HireflowDbContext(DbContextOptions<HireflowDbContext> option
     public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();
 
     public DbSet<WorkspaceInvitation> WorkspaceInvitations => Set<WorkspaceInvitation>();
+
+    public DbSet<JobOpening> JobOpenings => Set<JobOpening>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
