@@ -262,18 +262,26 @@ function JobDetail({
           </dl>
         </div>
 
-        {canManage && !isEditing ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={onEdit}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-            >
-              Edit
-            </button>
-            <StatusActions status={job.status} disabled={isChangingStatus} onChange={onStatusChange} />
-          </div>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/workspaces/${job.workspaceId}/jobs/${job.id}/candidates`}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+          >
+            Candidates
+          </Link>
+          {canManage && !isEditing ? (
+            <>
+              <button
+                type="button"
+                onClick={onEdit}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+              >
+                Edit
+              </button>
+              <StatusActions status={job.status} disabled={isChangingStatus} onChange={onStatusChange} />
+            </>
+          ) : null}
+        </div>
       </div>
 
       {statusError ? (

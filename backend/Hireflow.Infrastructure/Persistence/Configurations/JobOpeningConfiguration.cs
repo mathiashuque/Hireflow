@@ -12,6 +12,11 @@ public sealed class JobOpeningConfiguration : IEntityTypeConfiguration<JobOpenin
     {
         builder.HasKey(job => job.Id);
 
+        // Lets Candidate's FK reference (WorkspaceId, JobOpeningId) as a composite pair,
+        // so the database itself rejects a candidate row whose job belongs to a
+        // different workspace rather than relying on an application-level check alone.
+        builder.HasAlternateKey(job => new { job.WorkspaceId, job.Id });
+
         builder.Property(job => job.Title)
             .IsRequired()
             .HasMaxLength(200);
