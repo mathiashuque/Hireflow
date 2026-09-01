@@ -54,6 +54,10 @@ public static class DependencyInjection
 
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IWorkspaceService, WorkspaceService>();
+        services.AddScoped<IWorkspaceInvitationService, WorkspaceInvitationService>();
+        services.AddScoped<IWorkspaceMembershipService, WorkspaceMembershipService>();
+
+        services.Configure<WorkspaceInvitationOptions>(configuration.GetSection(WorkspaceInvitationOptions.SectionName));
 
         return services;
     }

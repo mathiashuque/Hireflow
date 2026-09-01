@@ -66,7 +66,7 @@ const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export async function apiRequest<TResponse>(
   path: string,
-  init: { method: "GET" | "POST"; body?: unknown } = { method: "GET" },
+  init: { method: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown } = { method: "GET" },
 ): Promise<TResponse | undefined> {
   const headers: HeadersInit = {};
   let requestBody: string | undefined;

@@ -10,7 +10,10 @@ namespace Hireflow.Api.Controllers;
 [ApiController]
 [Route("api/workspaces")]
 [Authorize]
-public sealed class WorkspacesController(IWorkspaceService workspaceService, ICurrentUser currentUser)
+public sealed class WorkspacesController(
+    IWorkspaceService workspaceService,
+    IWorkspaceMembershipService membershipService,
+    ICurrentUser currentUser)
     : ControllerBase
 {
     [HttpPost]
@@ -57,6 +60,49 @@ public sealed class WorkspacesController(IWorkspaceService workspaceService, ICu
     {
         var members = await workspaceService.ListMembersAsync(currentUser.UserId, workspaceId, cancellationToken);
         return members is null ? NotFound() : Ok(members);
+    }
+
+    [HttpPatch("{workspaceId:guid}/members/{userId:guid}/role")]
+    [ValidateCsrfToken]
+    public async Task<IActionResult> ChangeMemberRole(
+        Guid workspaceId,
+        Guid userId,
+        [FromBody] ChangeMemberRoleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await membershipService.ChangeRoleAsync(workspaceId, currentUser.UserId, userId, request, cancellationToken);
+
+        return result.Outcome switch
+        {
+            ChangeMemberRoleOutcome.Success => NoContent(),
+            ChangeMemberRoleOutcome.NotFound => NotFound(),
+            ChangeMemberRoleOutcome.Forbidden => Forbid(),
+            ChangeMemberRoleOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(request.Role), result.Errors)),
+            ChangeMemberRoleOutcome.LastOwner => Problem(
+                title: "Role change rejected",
+                detail: result.Errors.FirstOrDefault(),
+                statusCode: StatusCodes.Status409Conflict),
+            _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
+        };
+    }
+
+    [HttpDelete("{workspaceId:guid}/members/{userId:guid}")]
+    [ValidateCsrfToken]
+    public async Task<IActionResult> RemoveMember(Guid workspaceId, Guid userId, CancellationToken cancellationToken)
+    {
+        var outcome = await membershipService.RemoveAsync(workspaceId, currentUser.UserId, userId, cancellationToken);
+
+        return outcome switch
+        {
+            RemoveMemberOutcome.Success => NoContent(),
+            RemoveMemberOutcome.NotFound => NotFound(),
+            RemoveMemberOutcome.Forbidden => Forbid(),
+            RemoveMemberOutcome.LastOwner => Problem(
+                title: "Removal rejected",
+                detail: "A workspace must always have at least one Owner.",
+                statusCode: StatusCodes.Status409Conflict),
+            _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
+        };
     }
 
     private static ModelStateDictionary ToModelState(string key, IReadOnlyList<string> errors)

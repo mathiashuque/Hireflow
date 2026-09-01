@@ -12,7 +12,7 @@ namespace Hireflow.Tests.Integration;
 /// Boots the real API pipeline (Program.cs) against a disposable PostgreSQL container
 /// instead of production configuration.
 /// </summary>
-public sealed class HireflowApiFactory(string connectionString) : WebApplicationFactory<Program>
+public sealed class HireflowApiFactory(string connectionString, TimeProvider? timeProvider = null) : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -35,6 +35,12 @@ public sealed class HireflowApiFactory(string connectionString) : WebApplication
         {
             services.RemoveAll<DbContextOptions<HireflowDbContext>>();
             services.AddDbContext<HireflowDbContext>(options => options.UseNpgsql(connectionString));
+
+            if (timeProvider is not null)
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton(timeProvider);
+            }
         });
     }
 
