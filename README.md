@@ -163,6 +163,24 @@ With the stack running (`docker compose up -d --build`) and migrations applied:
 3. Reload the page — the session is restored via `GET /api/auth/me`.
 4. Use **Log out**, then log back in at `/login` with the same credentials.
 
+### Seeding multi-role dev accounts
+
+`scripts/seed-dev-accounts.sh` drives the real HTTP API (register, CSRF, workspace
+creation, invitations, job creation) to build a disposable Owner/Recruiter/Interviewer
+fixture for manual testing. Run it once against a fresh database, after migrations are
+applied:
+
+```bash
+docker compose up -d --build
+dotnet ef database update --project backend/Hireflow.Infrastructure --startup-project backend/Hireflow.Api
+./scripts/seed-dev-accounts.sh
+```
+
+It creates `owner@example.com`, `recruiter@example.com`, and `interviewer@example.com`
+(all with the dev-only password printed by the script), a workspace they share, an Open
+job (candidate intake enabled), and a Draft job (intake disabled). Requires `curl` and
+`jq`. Not idempotent — rerun it only against a database you've reset.
+
 ## Workspaces
 
 A workspace is Hireflow's tenant: job openings, candidates, and hiring activity
