@@ -18,6 +18,7 @@ import { InviteMemberForm } from "@/components/InviteMemberForm";
 import { OneTimeInvitationLink } from "@/components/OneTimeInvitationLink";
 import { PendingInvitationsList } from "@/components/PendingInvitationsList";
 import { MembersList } from "@/components/MembersList";
+import { WorkspaceNav } from "@/components/WorkspaceNav";
 
 type PageState =
   | { status: "loading" }
@@ -187,51 +188,55 @@ function WorkspaceContent({
   const isOwner = workspace.role === "Owner";
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-8">
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-600">{workspace.role}</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">{workspace.name}</h1>
         <p className="mt-1 text-sm text-slate-500">/{workspace.slug}</p>
       </div>
 
-      <div>
-        <h2 className="text-sm font-semibold text-slate-950">Members</h2>
-        <div className="mt-3">
-          <MembersList
-            workspaceId={workspace.id}
-            members={members}
-            currentUserId={currentUserId}
-            canManage={isOwner}
-            onChanged={onMutated}
-          />
+      <WorkspaceNav workspaceId={workspace.id} />
+
+      <div className="flex flex-col gap-10">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-950">Members</h2>
+          <div className="mt-3">
+            <MembersList
+              workspaceId={workspace.id}
+              members={members}
+              currentUserId={currentUserId}
+              canManage={isOwner}
+              onChanged={onMutated}
+            />
+          </div>
         </div>
+
+        {isOwner ? (
+          <div className="flex flex-col gap-8">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-950">Invite someone</h2>
+              <div className="mt-3 flex flex-col gap-4">
+                {justCreated ? (
+                  <OneTimeInvitationLink invitation={justCreated} onDismiss={onDismissJustCreated} />
+                ) : (
+                  <InviteMemberForm workspaceId={workspace.id} onCreated={onInvitationCreated} />
+                )}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-sm font-semibold text-slate-950">Pending invitations</h2>
+              <div className="mt-3">
+                <PendingInvitationsList
+                  workspaceId={workspace.id}
+                  invitations={invitations ?? []}
+                  onRevoked={onMutated}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
-
-      {isOwner ? (
-        <div className="flex flex-col gap-8">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-950">Invite someone</h2>
-            <div className="mt-3 flex flex-col gap-4">
-              {justCreated ? (
-                <OneTimeInvitationLink invitation={justCreated} onDismiss={onDismissJustCreated} />
-              ) : (
-                <InviteMemberForm workspaceId={workspace.id} onCreated={onInvitationCreated} />
-              )}
-            </div>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-semibold text-slate-950">Pending invitations</h2>
-            <div className="mt-3">
-              <PendingInvitationsList
-                workspaceId={workspace.id}
-                invitations={invitations ?? []}
-                onRevoked={onMutated}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

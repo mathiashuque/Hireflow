@@ -1,6 +1,8 @@
 using Hireflow.Application.Auth;
+using Hireflow.Application.Jobs;
 using Hireflow.Application.Workspaces;
 using Hireflow.Infrastructure.Identity;
+using Hireflow.Infrastructure.Jobs;
 using Hireflow.Infrastructure.Persistence;
 using Hireflow.Infrastructure.Workspaces;
 using Microsoft.AspNetCore.Identity;
@@ -56,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkspaceService, WorkspaceService>();
         services.AddScoped<IWorkspaceInvitationService, WorkspaceInvitationService>();
         services.AddScoped<IWorkspaceMembershipService, WorkspaceMembershipService>();
+        services.AddScoped<IJobOpeningService, JobOpeningService>();
 
         services.Configure<WorkspaceInvitationOptions>(configuration.GetSection(WorkspaceInvitationOptions.SectionName));
 

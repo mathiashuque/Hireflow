@@ -244,6 +244,41 @@ Endpoints:
 All four endpoints are cookie-authenticated; the three that mutate state also
 require the CSRF proof.
 
+## Job openings
+
+A job opening always belongs to exactly one workspace; every read and write is
+scoped by that workspace's ID (and, for a specific job, its own ID within that
+workspace) at the database query, never fetched globally and checked afterward.
+
+Permissions:
+
+- **Owner** and **Recruiter** can create job openings, edit title/description,
+  and change status.
+- **Interviewer** can list and view jobs but gets `403` from every mutation.
+
+Lifecycle: a new job starts as **Draft**. Valid transitions are
+Draft → Open, Open → Closed, and Closed → Open (reopen); every other request,
+including a no-op like Open → Open, is rejected rather than silently accepted.
+`ClosedAt` is set on close and cleared on reopen; ordinary edits never touch it.
+
+Endpoints (all require workspace membership; authentication alone is not enough):
+
+- `POST /api/workspaces/{workspaceId}/jobs` — Owner/Recruiter; creates a Draft
+  job from a required title and optional plain-text description.
+- `GET /api/workspaces/{workspaceId}/jobs` — any member; supports an optional
+  `?status=Draft|Open|Closed` filter, ordered by most recently updated then ID.
+- `GET /api/workspaces/{workspaceId}/jobs/{jobId}` — any member.
+- `PATCH /api/workspaces/{workspaceId}/jobs/{jobId}` — Owner/Recruiter; edits
+  title/description.
+- `PATCH /api/workspaces/{workspaceId}/jobs/{jobId}/status` — Owner/Recruiter;
+  applies a status transition.
+
+The two mutation endpoints require a `version` field, echoed back from the job's
+last-read response. It's backed by PostgreSQL's `xmin` system column rather than
+a hand-maintained counter, so any concurrent edit changes it automatically. A
+stale `version` is rejected with `409` instead of silently overwriting a newer
+change; the client is expected to reload the job and retry.
+
 ## License
 
 This project is proprietary. Copying, redistribution, modification, or use
