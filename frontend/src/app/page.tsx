@@ -1,3 +1,5 @@
+import { AuthNav } from "@/components/AuthNav";
+
 const features = [
   "Isolated team workspaces",
   "Jobs and candidate pipelines",
@@ -11,9 +13,7 @@ export default function Home() {
         <span className="text-lg font-semibold tracking-tight text-slate-950">
           Hireflow
         </span>
-        <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-          In development
-        </span>
+        <AuthNav />
       </nav>
 
       <section className="flex flex-1 flex-col justify-center py-24">

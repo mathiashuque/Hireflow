@@ -1,0 +1,99 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
+import { FormField } from "@/components/FormField";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { ApiError, ApiUnavailableError } from "@/lib/api/client";
+
+export function RegisterForm() {
+  const router = useRouter();
+  const { register } = useAuth();
+
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError(null);
+    setFieldErrors({});
+    setIsSubmitting(true);
+
+    try {
+      await register({ displayName, email, password });
+      router.push("/dashboard");
+    } catch (error) {
+      if (error instanceof ApiUnavailableError) {
+        setFormError(error.message);
+      } else if (error instanceof ApiError) {
+        setFieldErrors(error.fieldErrors);
+        setFormError(Object.keys(error.fieldErrors).length === 0 ? error.message : null);
+      } else {
+        setFormError("Something went wrong. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate className="flex w-full max-w-sm flex-col gap-4">
+      {formError ? (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {formError}
+        </p>
+      ) : null}
+
+      <FormField
+        id="displayName"
+        label="Display name"
+        type="text"
+        value={displayName}
+        onChange={setDisplayName}
+        autoComplete="name"
+        disabled={isSubmitting}
+        error={fieldErrors.DisplayName?.[0]}
+      />
+      <FormField
+        id="email"
+        label="Email"
+        type="email"
+        value={email}
+        onChange={setEmail}
+        autoComplete="email"
+        disabled={isSubmitting}
+        error={fieldErrors.Email?.[0]}
+      />
+      <FormField
+        id="password"
+        label="Password"
+        type="password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="new-password"
+        disabled={isSubmitting}
+        error={fieldErrors.Password?.[0]}
+      />
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="mt-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-400"
+      >
+        {isSubmitting ? "Creating account…" : "Create account"}
+      </button>
+
+      <p className="text-sm text-slate-600">
+        Already have an account?{" "}
+        <Link href="/login" className="font-medium text-indigo-600 hover:underline">
+          Log in
+        </Link>
+      </p>
+    </form>
+  );
+}

@@ -6,7 +6,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- SignInManager/UserManager depend on ASP.NET Core HTTP abstractions, which are
+         part of the shared framework rather than a standalone NuGet package. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
   </ItemGroup>
 
   <PropertyGroup>
