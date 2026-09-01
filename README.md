@@ -308,16 +308,17 @@ candidate's job belongs to the same workspace, via a composite foreign key on
 
 Permissions:
 
-- **Owner** and **Recruiter** can add candidates to an **Open** job and edit
-  name/email on any candidate regardless of the job's current status.
-- **Interviewer** can list and view candidates but gets `403` from every
-  mutation.
+- **Owner** and **Recruiter** can add candidates to an **Open** job, edit
+  name/email on any candidate regardless of the job's current status, and move
+  a candidate between stages regardless of the job's current status.
+- **Interviewer** can list and view candidates and their stage history but
+  gets `403` from every mutation, including stage moves.
 
 A candidate can only be added while its job is **Open**; adding to a Draft or
 Closed job returns a `409` domain conflict. New candidates always start in the
 **Applied** stage — the create/edit contracts never accept a caller-selected
 stage. The predefined stages are Applied, Screening, Interview, Offer, and
-Rejected; moving a candidate between stages is not implemented in this slice.
+Rejected.
 
 Email uniqueness is enforced per job (case-insensitive, using the same
 normalization as Identity account emails) via a PostgreSQL unique index on
@@ -332,17 +333,68 @@ Endpoints (all require workspace membership; authentication alone is not enough)
 - `POST /api/workspaces/{workspaceId}/jobs/{jobId}/candidates` — Owner/Recruiter;
   adds a candidate to an Open job.
 - `GET /api/workspaces/{workspaceId}/jobs/{jobId}/candidates` — any member;
-  supports an optional `?stage=Applied|Screening|Interview|Offer|Rejected`
-  filter, ordered by most recently updated then ID.
+  the hiring board's data source, supporting an optional
+  `?stage=Applied|Screening|Interview|Offer|Rejected` filter, ordered by most
+  recently updated then ID.
 - `GET /api/workspaces/{workspaceId}/candidates/{candidateId}` — any member.
 - `PATCH /api/workspaces/{workspaceId}/candidates/{candidateId}` — Owner/Recruiter;
   edits name/email using the same `xmin`-backed optimistic-concurrency `version`
   field as job openings. Stage, job, workspace, creator, and creation time cannot
   be changed through this contract.
+- `PATCH /api/workspaces/{workspaceId}/candidates/{candidateId}/stage` —
+  Owner/Recruiter; moves a candidate using `{ stage, version }` and returns the
+  updated candidate.
+- `GET /api/workspaces/{workspaceId}/candidates/{candidateId}/history` — any
+  member; returns that candidate's immutable stage history, newest first.
 
 Candidate name/email are treated as personal data: they are never written to
 routine application logs, and a guessed or cross-tenant workspace/job/candidate
 ID returns the same non-enumerating `404` as a nonexistent resource.
+
+### Stage movement and history
+
+Any predefined stage may move to any other *different* predefined stage,
+including backward corrections and recovery out of Rejected — the portfolio
+pipeline is intentionally flexible rather than a strict funnel. A no-op move to
+the candidate's current stage is rejected as a `409` domain conflict, and an
+unrecognized stage name is a `400` validation error. Stage movement works
+regardless of whether the candidate's job is currently Draft, Open, or Closed,
+so teams can finish or correct a hiring process after a job closes; a job's
+status only gates adding *new* candidates, never moving existing ones.
+
+Every successful move atomically updates `Candidate.Stage`/`UpdatedAt` and
+inserts exactly one `CandidateStageHistory` row in the same `SaveChanges` unit
+— neither half ever persists alone. History rows are immutable, append-only
+audit facts: there is no update/delete endpoint, and initial creation into
+Applied is never recorded or backfilled as a history event. History for an
+existing or newly created Applied candidate starts empty and shows "No stage
+changes yet" until its first real move.
+
+Stage moves use the same `xmin`-backed `version` field, request contract shape,
+and `409` concurrency convention as candidate edits, and serialize against
+edits to the same candidate row — a stale move or a stale edit is rejected
+without changing anything, so at most one of a racing edit/move pair ever wins.
+`ChangedByUserId` is always resolved from the authenticated caller, never from
+the request body; a history entry's display name is resolved only for verified
+workspace members reading their own workspace's history, never disclosed to
+nonmembers or cross-tenant guesses.
+
+A `CandidateStageHistory` row is tenant-owned and enforced by a composite
+foreign key against `(WorkspaceId, Id)` on `Candidate`, mirroring the
+`Candidate` → `JobOpening` relationship, so the database itself rejects a
+history row for a candidate in a different workspace.
+
+### Hiring board
+
+The job candidates page is a five-column board ordered Applied, Screening,
+Interview, Offer, Rejected, backed by the same job-scoped candidate list
+endpoint above (no separate board API). Every column is always rendered with a
+count, even when empty. Owner/Recruiter move a candidate with an explicit
+labeled stage select plus a Move button — an accessible, non-drag control that
+is the only way to move a candidate in this slice; there is no drag-and-drop.
+Interviewers see the same board read-only. A stage conflict (someone else moved
+the candidate first) refreshes the board and explains what happened rather than
+silently overwriting.
 
 ## License
 

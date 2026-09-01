@@ -52,6 +52,50 @@ public sealed class CandidatesController(ICandidateService candidateService, ICu
         };
     }
 
+    [HttpPatch("{candidateId:guid}/stage")]
+    [ValidateCsrfToken]
+    public async Task<ActionResult<CandidateResponse>> MoveStage(
+        Guid workspaceId,
+        Guid candidateId,
+        [FromBody] MoveCandidateStageRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await candidateService.MoveStageAsync(workspaceId, currentUser.UserId, candidateId, request, cancellationToken);
+
+        return result.Outcome switch
+        {
+            MoveCandidateStageOutcome.Success => Ok(result.Candidate),
+            MoveCandidateStageOutcome.NotFound => NotFound(),
+            MoveCandidateStageOutcome.Forbidden => Forbid(),
+            MoveCandidateStageOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(request.Stage), result.Errors)),
+            MoveCandidateStageOutcome.NoOpTransition => Problem(
+                title: "Candidate is already in this stage",
+                detail: result.Errors.FirstOrDefault(),
+                statusCode: StatusCodes.Status409Conflict),
+            MoveCandidateStageOutcome.ConcurrencyConflict => Problem(
+                title: "Candidate changed since you loaded it",
+                detail: result.Errors.FirstOrDefault(),
+                statusCode: StatusCodes.Status409Conflict),
+            _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
+        };
+    }
+
+    [HttpGet("{candidateId:guid}/history")]
+    public async Task<ActionResult<IReadOnlyList<CandidateStageHistoryResponse>>> GetHistory(
+        Guid workspaceId,
+        Guid candidateId,
+        CancellationToken cancellationToken)
+    {
+        var result = await candidateService.GetHistoryAsync(workspaceId, currentUser.UserId, candidateId, cancellationToken);
+
+        return result.Outcome switch
+        {
+            GetCandidateHistoryOutcome.Success => Ok(result.History),
+            GetCandidateHistoryOutcome.NotFound => NotFound(),
+            _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
+        };
+    }
+
     private static ModelStateDictionary ToModelState(string key, IReadOnlyList<string> errors)
     {
         var modelState = new ModelStateDictionary();

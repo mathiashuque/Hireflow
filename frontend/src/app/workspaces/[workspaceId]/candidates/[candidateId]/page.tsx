@@ -6,16 +6,29 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
 import { getWorkspace } from "@/lib/api/workspaces";
-import { getCandidate, isConcurrencyConflict, isDuplicateEmailConflict, updateCandidate, type Candidate } from "@/lib/api/candidates";
+import {
+  getCandidate,
+  getCandidateHistory,
+  isConcurrencyConflict,
+  isDuplicateEmailConflict,
+  isNoOpStageConflict,
+  moveCandidateStage,
+  updateCandidate,
+  type Candidate,
+  type CandidateStage,
+  type CandidateStageHistoryEntry,
+} from "@/lib/api/candidates";
 import { CandidateStageBadge } from "@/components/CandidateStageBadge";
 import { CandidateDetailsForm } from "@/components/CandidateDetailsForm";
+import { CandidateStageMoveControl } from "@/components/CandidateStageMoveControl";
+import { CandidateStageHistoryTimeline } from "@/components/CandidateStageHistoryTimeline";
 
 type PageState =
   | { status: "loading" }
   | { status: "unavailable" }
   | { status: "not-found" }
   | { status: "error" }
-  | { status: "ready"; candidate: Candidate; canManage: boolean };
+  | { status: "ready"; candidate: Candidate; canManage: boolean; history: CandidateStageHistoryEntry[] };
 
 export default function CandidateDetailPage(props: PageProps<"/workspaces/[workspaceId]/candidates/[candidateId]">) {
   const { workspaceId, candidateId } = use(props.params);
@@ -37,11 +50,16 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
         return { status: "not-found" };
       }
 
+      const history = await getCandidateHistory(workspaceId, candidateId);
+      if (!history) {
+        return { status: "not-found" };
+      }
+
       // This only decides which controls the UI shows; the backend independently
       // enforces every mutation regardless of what the client believes the role is.
       const canManage = workspace.role === "Owner" || workspace.role === "Recruiter";
 
-      return { status: "ready", candidate, canManage };
+      return { status: "ready", candidate, canManage, history };
     } catch (error) {
       return { status: error instanceof ApiUnavailableError ? "unavailable" : "error" };
     }
@@ -99,7 +117,7 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
         email: input.email,
         version: state.candidate.version,
       });
-      setState({ status: "ready", candidate: updated, canManage: state.canManage });
+      setState({ status: "ready", candidate: updated, canManage: state.canManage, history: state.history });
       setIsEditing(false);
     } catch (error) {
       if (isConcurrencyConflict(error)) {
@@ -117,6 +135,34 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
         throw new Error(error.fieldErrors.Name?.[0] ?? error.message);
       }
       throw new Error("Something went wrong. Please try again.");
+    }
+  }
+
+  async function handleMoveStage(target: CandidateStage) {
+    if (state.status !== "ready") {
+      return;
+    }
+
+    setConflictMessage(null);
+    try {
+      await moveCandidateStage(workspaceId, candidateId, { stage: target, version: state.candidate.version });
+      refresh();
+    } catch (error) {
+      if (isNoOpStageConflict(error)) {
+        throw new Error("The candidate is already in this stage.");
+      }
+      if (isConcurrencyConflict(error)) {
+        setConflictMessage("This candidate was changed by someone else. The latest version is now shown below.");
+        refresh();
+        return;
+      }
+      if (error instanceof ApiUnavailableError) {
+        throw error;
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new Error("You don't have permission to move this candidate.");
+      }
+      throw new Error("Something went wrong moving this candidate. Please try again.");
     }
   }
 
@@ -172,11 +218,13 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
           <CandidateDetail
             candidate={state.candidate}
             canManage={state.canManage}
+            history={state.history}
             isEditing={isEditing}
             conflictMessage={conflictMessage}
             onEdit={() => setIsEditing(true)}
             onCancelEdit={() => setIsEditing(false)}
             onSaveEdit={handleSaveEdit}
+            onMoveStage={handleMoveStage}
           />
         )}
       </section>
@@ -187,19 +235,23 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
 function CandidateDetail({
   candidate,
   canManage,
+  history,
   isEditing,
   conflictMessage,
   onEdit,
   onCancelEdit,
   onSaveEdit,
+  onMoveStage,
 }: {
   candidate: Candidate;
   canManage: boolean;
+  history: CandidateStageHistoryEntry[];
   isEditing: boolean;
   conflictMessage: string | null;
   onEdit: () => void;
   onCancelEdit: () => void;
   onSaveEdit: (input: { name: string; email: string }) => Promise<void>;
+  onMoveStage: (target: CandidateStage) => Promise<void>;
 }) {
   return (
     <div className="flex flex-col gap-8">
@@ -235,6 +287,15 @@ function CandidateDetail({
         ) : null}
       </div>
 
+      {canManage ? (
+        <div>
+          <h2 className="text-sm font-semibold text-slate-950">Move stage</h2>
+          <div className="mt-2">
+            <CandidateStageMoveControl currentStage={candidate.stage} labelPrefix="Move candidate to" onMove={onMoveStage} />
+          </div>
+        </div>
+      ) : null}
+
       {isEditing ? (
         <CandidateDetailsForm
           initialName={candidate.name}
@@ -247,6 +308,13 @@ function CandidateDetail({
       ) : null}
 
       {!canManage ? <p className="text-xs text-slate-400">You have read-only access to this candidate.</p> : null}
+
+      <div>
+        <h2 className="text-sm font-semibold text-slate-950">Stage history</h2>
+        <div className="mt-2">
+          <CandidateStageHistoryTimeline history={history} />
+        </div>
+      </div>
     </div>
   );
 }

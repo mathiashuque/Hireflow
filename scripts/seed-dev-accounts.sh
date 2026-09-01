@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# Dev-only fixture: creates 3 accounts (Owner/Recruiter/Interviewer), a workspace, and
-# two job openings (one Open, one Draft), by driving the real HTTP API end to end
-# (register -> CSRF -> create workspace -> invite -> accept -> create/open jobs).
+# Dev-only fixture: creates 3 accounts (Owner/Recruiter/Interviewer), a workspace, two
+# job openings (one Open, one Draft), and a handful of candidates spread across the
+# hiring board's stages, by driving the real HTTP API end to end (register -> CSRF ->
+# create workspace -> invite -> accept -> create/open jobs -> add/move candidates).
 #
 # Intended to run ONCE against a fresh, empty local database, right after
 # `docker compose up -d --build` and `dotnet ef database update`. Not idempotent: running
@@ -141,12 +142,46 @@ log "Creating a second job '$JOB_DRAFT_TITLE' (left in Draft)"
 api POST "/api/workspaces/$WORKSPACE_ID/jobs" "$OWNER_JAR" \
   "$(jq -n --arg t "$JOB_DRAFT_TITLE" '{title:$t}')" >/dev/null
 
+add_candidate() {
+  local name="$1" email="$2"
+  api POST "/api/workspaces/$WORKSPACE_ID/jobs/$JOB_OPEN_ID/candidates" "$OWNER_JAR" \
+    "$(jq -n --arg n "$name" --arg e "$email" '{name:$n, email:$e}')"
+}
+
+move_candidate() {
+  local candidate_json="$1" stage="$2"
+  local id version
+  id="$(jq -r '.id' <<<"$candidate_json")"
+  version="$(jq -r '.version' <<<"$candidate_json")"
+  api PATCH "/api/workspaces/$WORKSPACE_ID/candidates/$id/stage" "$OWNER_JAR" \
+    "$(jq -n --arg s "$stage" --arg v "$version" '{stage:$s, version:$v}')"
+}
+
+log "Adding candidates to '$JOB_OPEN_TITLE' across pipeline stages"
+add_candidate "Alice Applicant" "alice.applicant@example.com" >/dev/null
+
+BOB_JSON="$(add_candidate "Bob Screening" "bob.screening@example.com")"
+move_candidate "$BOB_JSON" "Screening" >/dev/null
+
+CARL_JSON="$(add_candidate "Carla Interview" "carla.interview@example.com")"
+CARL_JSON="$(move_candidate "$CARL_JSON" "Screening")"
+move_candidate "$CARL_JSON" "Interview" >/dev/null
+
+DANA_JSON="$(add_candidate "Dana Offer" "dana.offer@example.com")"
+DANA_JSON="$(move_candidate "$DANA_JSON" "Screening")"
+DANA_JSON="$(move_candidate "$DANA_JSON" "Interview")"
+move_candidate "$DANA_JSON" "Offer" >/dev/null
+
+ERIN_JSON="$(add_candidate "Erin Rejected" "erin.rejected@example.com")"
+move_candidate "$ERIN_JSON" "Rejected" >/dev/null
+
 cat <<EOF
 
 Seed complete.
 
 Workspace:    $WORKSPACE_NAME ($WORKSPACE_ID)
 Open job:     $JOB_OPEN_TITLE ($JOB_OPEN_ID) -- candidate intake enabled
+              5 candidates seeded across Applied/Screening/Interview/Offer/Rejected
 Draft job:    $JOB_DRAFT_TITLE -- candidate intake disabled
 
 Accounts (dev-only, do not reuse these credentials anywhere else):

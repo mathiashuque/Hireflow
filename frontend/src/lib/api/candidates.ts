@@ -89,6 +89,58 @@ export async function updateCandidate(
   return candidate!;
 }
 
+export type MoveCandidateStageInput = {
+  stage: CandidateStage;
+  version: string;
+};
+
+export type CandidateStageHistoryEntry = {
+  id: string;
+  candidateId: string;
+  previousStage: CandidateStage;
+  newStage: CandidateStage;
+  changedByUserId: string;
+  /** Present only when the actor's account could still be resolved. */
+  changedByDisplayName: string | null;
+  changedAt: string;
+};
+
+export async function moveCandidateStage(
+  workspaceId: string,
+  candidateId: string,
+  input: MoveCandidateStageInput,
+): Promise<Candidate> {
+  const candidate = await apiRequest<Candidate>(`/api/workspaces/${workspaceId}/candidates/${candidateId}/stage`, {
+    method: "PATCH",
+    body: input,
+  });
+  return candidate!;
+}
+
+/** Returns `null` when the workspace/candidate does not exist or the caller is not a member. */
+export async function getCandidateHistory(
+  workspaceId: string,
+  candidateId: string,
+): Promise<CandidateStageHistoryEntry[] | null> {
+  try {
+    const history = await apiRequest<CandidateStageHistoryEntry[]>(
+      `/api/workspaces/${workspaceId}/candidates/${candidateId}/history`,
+      { method: "GET" },
+    );
+    return history ?? [];
+  } catch (error) {
+    if (isNotFound(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/** True when a stage move failed because the candidate is already in the requested stage. */
+export function isNoOpStageConflict(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409 && error.message.toLowerCase().includes("already in this stage");
+}
+
 /** True when a create failed because the target job is Draft or Closed. */
 export function isJobNotOpenConflict(error: unknown): boolean {
   return error instanceof ApiError && error.status === 409 && error.message.toLowerCase().includes("open job");
@@ -105,7 +157,8 @@ export function isConcurrencyConflict(error: unknown): boolean {
     error instanceof ApiError &&
     error.status === 409 &&
     !isJobNotOpenConflict(error) &&
-    !isDuplicateEmailConflict(error)
+    !isDuplicateEmailConflict(error) &&
+    !isNoOpStageConflict(error)
   );
 }
 

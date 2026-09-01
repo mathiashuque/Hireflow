@@ -125,3 +125,70 @@ public sealed record UpdateCandidateResult(UpdateCandidateOutcome Outcome, Candi
     public static UpdateCandidateResult DuplicateEmail() =>
         new(UpdateCandidateOutcome.DuplicateEmail, null, ["A candidate with this email already exists for this job."]);
 }
+
+/// <summary>Request body for <c>PATCH /api/workspaces/{workspaceId}/candidates/{candidateId}/stage</c>.</summary>
+public sealed class MoveCandidateStageRequest
+{
+    /// <summary>Must be one of the predefined stage names. The caller never supplies the previous stage, actor, or timestamp.</summary>
+    [Required]
+    public required string Stage { get; init; }
+
+    /// <summary>The concurrency token last seen by the client, echoed back from a prior response.</summary>
+    [Required]
+    public required string Version { get; init; }
+}
+
+public sealed record CandidateStageHistoryResponse(
+    Guid Id,
+    Guid CandidateId,
+    string PreviousStage,
+    string NewStage,
+    Guid ChangedByUserId,
+    string? ChangedByDisplayName,
+    DateTimeOffset ChangedAt);
+
+public enum MoveCandidateStageOutcome
+{
+    Success,
+    NotFound,
+    Forbidden,
+    ValidationFailed,
+
+    /// <summary>The target stage equals the candidate's current stage.</summary>
+    NoOpTransition,
+
+    /// <summary>The submitted <c>Version</c> no longer matches the persisted row.</summary>
+    ConcurrencyConflict,
+}
+
+public sealed record MoveCandidateStageResult(MoveCandidateStageOutcome Outcome, CandidateResponse? Candidate, IReadOnlyList<string> Errors)
+{
+    public static MoveCandidateStageResult Success(CandidateResponse candidate) => new(MoveCandidateStageOutcome.Success, candidate, []);
+
+    public static MoveCandidateStageResult NotFound() => new(MoveCandidateStageOutcome.NotFound, null, []);
+
+    public static MoveCandidateStageResult Forbidden() => new(MoveCandidateStageOutcome.Forbidden, null, []);
+
+    public static MoveCandidateStageResult ValidationFailed(IReadOnlyList<string> errors) =>
+        new(MoveCandidateStageOutcome.ValidationFailed, null, errors);
+
+    public static MoveCandidateStageResult NoOpTransition() =>
+        new(MoveCandidateStageOutcome.NoOpTransition, null, ["The candidate is already in this stage."]);
+
+    public static MoveCandidateStageResult ConcurrencyConflict() =>
+        new(MoveCandidateStageOutcome.ConcurrencyConflict, null, ["This candidate was changed by someone else. Refresh and try again."]);
+}
+
+public enum GetCandidateHistoryOutcome
+{
+    Success,
+    NotFound,
+}
+
+public sealed record GetCandidateHistoryResult(GetCandidateHistoryOutcome Outcome, IReadOnlyList<CandidateStageHistoryResponse>? History)
+{
+    public static GetCandidateHistoryResult Success(IReadOnlyList<CandidateStageHistoryResponse> history) =>
+        new(GetCandidateHistoryOutcome.Success, history);
+
+    public static GetCandidateHistoryResult NotFound() => new(GetCandidateHistoryOutcome.NotFound, null);
+}

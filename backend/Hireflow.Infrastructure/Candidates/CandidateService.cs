@@ -248,6 +248,115 @@ public sealed class CandidateService(
         return UpdateCandidateResult.Success(ToResponse(candidate, CurrentVersion(candidate)));
     }
 
+    public async Task<MoveCandidateStageResult> MoveStageAsync(
+        Guid workspaceId,
+        Guid callerUserId,
+        Guid candidateId,
+        MoveCandidateStageRequest request,
+        CancellationToken cancellationToken)
+    {
+        var callerRole = await WorkspaceAccessQueries.GetCallerRoleAsync(dbContext, workspaceId, callerUserId, cancellationToken);
+        if (callerRole is null)
+        {
+            return MoveCandidateStageResult.NotFound();
+        }
+
+        if (callerRole is not (WorkspaceRole.Owner or WorkspaceRole.Recruiter))
+        {
+            return MoveCandidateStageResult.Forbidden();
+        }
+
+        if (!Enum.TryParse<CandidateStage>(request.Stage, ignoreCase: true, out var targetStage))
+        {
+            return MoveCandidateStageResult.ValidationFailed(["Stage must be Applied, Screening, Interview, Offer, or Rejected."]);
+        }
+
+        if (!uint.TryParse(request.Version, out var expectedVersion))
+        {
+            return MoveCandidateStageResult.ValidationFailed(["Version is missing or invalid; reload the candidate and try again."]);
+        }
+
+        var candidate = await dbContext.Candidates
+            .SingleOrDefaultAsync(existing => existing.WorkspaceId == workspaceId && existing.Id == candidateId, cancellationToken);
+        if (candidate is null)
+        {
+            return MoveCandidateStageResult.NotFound();
+        }
+
+        SetExpectedVersion(candidate, expectedVersion);
+
+        var now = timeProvider.GetUtcNow();
+        if (!candidate.TryMoveToStage(targetStage, now, out var previousStage))
+        {
+            return MoveCandidateStageResult.NoOpTransition();
+        }
+
+        dbContext.CandidateStageHistories.Add(new CandidateStageHistory
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            CandidateId = candidateId,
+            PreviousStage = previousStage,
+            NewStage = targetStage,
+            ChangedByUserId = callerUserId,
+            ChangedAt = now,
+        });
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.Entry(candidate).State = EntityState.Detached;
+            return MoveCandidateStageResult.ConcurrencyConflict();
+        }
+
+        logger.LogInformation(
+            "Candidate {CandidateId} in workspace {WorkspaceId} moved {PreviousStage} -> {NewStage} by user {UserId}.",
+            candidateId, workspaceId, previousStage, targetStage, callerUserId);
+
+        return MoveCandidateStageResult.Success(ToResponse(candidate, CurrentVersion(candidate)));
+    }
+
+    public async Task<GetCandidateHistoryResult> GetHistoryAsync(
+        Guid workspaceId,
+        Guid callerUserId,
+        Guid candidateId,
+        CancellationToken cancellationToken)
+    {
+        var callerRole = await WorkspaceAccessQueries.GetCallerRoleAsync(dbContext, workspaceId, callerUserId, cancellationToken);
+        if (callerRole is null)
+        {
+            return GetCandidateHistoryResult.NotFound();
+        }
+
+        var candidateExists = await dbContext.Candidates
+            .AnyAsync(candidate => candidate.WorkspaceId == workspaceId && candidate.Id == candidateId, cancellationToken);
+        if (!candidateExists)
+        {
+            return GetCandidateHistoryResult.NotFound();
+        }
+
+        var history = await (
+            from entry in dbContext.CandidateStageHistories
+            where entry.WorkspaceId == workspaceId && entry.CandidateId == candidateId
+            join user in dbContext.Users on entry.ChangedByUserId equals user.Id into changedByUsers
+            from changedByUser in changedByUsers.DefaultIfEmpty()
+            orderby entry.ChangedAt descending, entry.Id
+            select new CandidateStageHistoryResponse(
+                entry.Id,
+                entry.CandidateId,
+                entry.PreviousStage.ToString(),
+                entry.NewStage.ToString(),
+                entry.ChangedByUserId,
+                changedByUser != null ? changedByUser.DisplayName : null,
+                entry.ChangedAt))
+            .ToArrayAsync(cancellationToken);
+
+        return GetCandidateHistoryResult.Success(history);
+    }
+
     private string? NormalizeEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
