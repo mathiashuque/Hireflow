@@ -44,13 +44,22 @@ public sealed class Candidate
     }
 
     /// <summary>
-    /// The single safe extension point for future stage-movement logic. Not exposed
-    /// through any endpoint in this slice; validation of allowed transitions belongs
-    /// here once stage movement is implemented, matching <c>JobOpening.TryTransitionTo</c>.
+    /// Attempts to move to <paramref name="target" />. Any predefined stage may move to
+    /// any other predefined stage (including backward, and recovery out of Rejected);
+    /// only a no-op move to the current stage is rejected without mutating anything, so
+    /// <see cref="Stage" /> and <see cref="UpdatedAt" /> never fall out of sync and no
+    /// history row is appended for a request that changed nothing.
     /// </summary>
-    public void MoveToStage(CandidateStage target, DateTimeOffset now)
+    public bool TryMoveToStage(CandidateStage target, DateTimeOffset now, out CandidateStage previousStage)
     {
+        previousStage = Stage;
+        if (target == Stage)
+        {
+            return false;
+        }
+
         Stage = target;
         UpdatedAt = now;
+        return true;
     }
 }

@@ -33,4 +33,24 @@ public interface ICandidateService
         Guid candidateId,
         UpdateCandidateRequest request,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Moves a candidate to a different predefined stage. Any stage may move to any
+    /// other different stage, regardless of the candidate's job's Draft/Open/Closed
+    /// status. A successful move atomically updates the candidate and appends exactly
+    /// one immutable history row in the same save.
+    /// </summary>
+    Task<MoveCandidateStageResult> MoveStageAsync(
+        Guid workspaceId,
+        Guid callerUserId,
+        Guid candidateId,
+        MoveCandidateStageRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>History is newest-change first, then stable ID. Available to any workspace member.</summary>
+    Task<GetCandidateHistoryResult> GetHistoryAsync(
+        Guid workspaceId,
+        Guid callerUserId,
+        Guid candidateId,
+        CancellationToken cancellationToken);
 }

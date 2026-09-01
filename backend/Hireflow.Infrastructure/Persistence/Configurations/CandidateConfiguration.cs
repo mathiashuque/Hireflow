@@ -13,6 +13,12 @@ public sealed class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
     {
         builder.HasKey(candidate => candidate.Id);
 
+        // Lets CandidateStageHistory's FK reference (WorkspaceId, CandidateId) as a
+        // composite pair, so the database itself rejects a history row whose candidate
+        // belongs to a different workspace rather than relying on an application-level
+        // check alone, matching JobOpening's alternate key for Candidate's own FK.
+        builder.HasAlternateKey(candidate => new { candidate.WorkspaceId, candidate.Id });
+
         builder.Property(candidate => candidate.Name)
             .IsRequired()
             .HasMaxLength(200);
