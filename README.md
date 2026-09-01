@@ -174,9 +174,15 @@ workspace existence is never observable across the tenant boundary.
 
 Roles, assigned per membership rather than as a global account role:
 
-- **Owner** — the workspace's creator; currently the only role this slice grants.
-- **Recruiter** and **Interviewer** — reserved for future invitation and
-  role-management slices; not yet assignable.
+- **Owner** — full administrative control: invites, revokes invitations, changes
+  member roles (including promoting another member to Owner), and removes
+  members. Every workspace always has at least one Owner; the backend rejects any
+  role change or removal that would leave it without one, and a sole Owner cannot
+  demote or remove themselves. Only granted by creating the workspace or being
+  promoted by an existing Owner — never through an invitation.
+- **Recruiter** and **Interviewer** — the two roles an invitation can grant. No
+  administrative permissions in this slice; reserved for future job/candidate
+  features.
 
 Endpoints (all require authentication):
 
@@ -192,9 +198,51 @@ Endpoints (all require authentication):
 - `GET /api/workspaces/{workspaceId}/members` — a workspace's members (user id,
   display name, role, joined timestamp), ordered by joined time then user id.
   Same non-enumerating `404` as above for a nonmember.
+- `PATCH /api/workspaces/{workspaceId}/members/{userId}/role` — Owner only;
+  changes a member's role. `409` if it would leave the workspace without an
+  Owner.
+- `DELETE /api/workspaces/{workspaceId}/members/{userId}` — Owner only; removes
+  a member (their Identity account is untouched). Same `409` last-Owner
+  protection as above.
 
-`POST /api/workspaces` is state-changing and cookie-authenticated, so it requires
-the same CSRF proof described above.
+`POST /api/workspaces` and the two member-management endpoints are state-changing
+and cookie-authenticated, so they require the same CSRF proof described above. A
+member who is not an Owner receives `403` from the two management endpoints; a
+caller who isn't a member of the workspace at all gets the same non-enumerating
+`404` used everywhere else.
+
+## Invitations
+
+Owners invite people to a workspace by email; there is no email delivery in this
+slice; the Owner copies a one-time link and sends it themselves. An invitation
+grants Recruiter or Interviewer — never Owner. It expires after 7 days by default
+(`WorkspaceInvitations:LifetimeDays` in configuration) and is single-use: accepting
+it atomically creates the membership and consumes the invitation, so a replayed
+link or a second acceptance attempt fails.
+
+The raw invitation token is returned exactly once, in the response to
+`POST .../invitations`. It is never stored (only a non-recoverable hash is), never
+included in the pending-invitations list, and never logged.
+
+Endpoints:
+
+- `POST /api/workspaces/{workspaceId}/invitations` — Owner only; body is `email`
+  and `role` (`Recruiter` or `Interviewer`). Rejects an email that already
+  belongs to a member, and rejects a second active invitation for the same email
+  (an invitation that expired unconsumed is superseded by a new one rather than
+  blocking it).
+- `GET /api/workspaces/{workspaceId}/invitations` — Owner only; lists pending
+  (not yet accepted or revoked) invitations, without tokens.
+- `DELETE /api/workspaces/{workspaceId}/invitations/{invitationId}` — Owner only;
+  revokes a pending invitation.
+- `POST /api/invitations/{token}/accept` — any authenticated account whose email
+  matches the invitation. Scoped to the token itself, not to a workspace route.
+  Every failure mode (invalid, expired, revoked, already used, or a mismatched
+  account) returns the same generic response, so a caller can never learn
+  anything about an invitation they can't already use.
+
+All four endpoints are cookie-authenticated; the three that mutate state also
+require the CSRF proof.
 
 ## License
 

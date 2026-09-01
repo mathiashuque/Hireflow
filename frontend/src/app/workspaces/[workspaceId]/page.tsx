@@ -5,20 +5,38 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiUnavailableError } from "@/lib/api/client";
-import { getWorkspace, listWorkspaceMembers, type WorkspaceDetail, type WorkspaceMember } from "@/lib/api/workspaces";
+import {
+  getWorkspace,
+  listPendingInvitations,
+  listWorkspaceMembers,
+  type CreatedInvitation,
+  type PendingInvitation,
+  type WorkspaceDetail,
+  type WorkspaceMember,
+} from "@/lib/api/workspaces";
+import { InviteMemberForm } from "@/components/InviteMemberForm";
+import { OneTimeInvitationLink } from "@/components/OneTimeInvitationLink";
+import { PendingInvitationsList } from "@/components/PendingInvitationsList";
+import { MembersList } from "@/components/MembersList";
 
 type PageState =
   | { status: "loading" }
   | { status: "unavailable" }
   | { status: "not-found" }
   | { status: "error" }
-  | { status: "ready"; workspace: WorkspaceDetail; members: WorkspaceMember[] };
+  | {
+      status: "ready";
+      workspace: WorkspaceDetail;
+      members: WorkspaceMember[];
+      invitations: PendingInvitation[] | null;
+    };
 
 export default function WorkspacePage(props: PageProps<"/workspaces/[workspaceId]">) {
   const { workspaceId } = use(props.params);
   const { status: authStatus, user } = useAuth();
   const router = useRouter();
   const [state, setState] = useState<PageState>({ status: "loading" });
+  const [justCreated, setJustCreated] = useState<CreatedInvitation | null>(null);
 
   const fetchState = useCallback(async (): Promise<PageState> => {
     try {
@@ -34,16 +52,22 @@ export default function WorkspacePage(props: PageProps<"/workspaces/[workspaceId
         return { status: "not-found" };
       }
 
-      return { status: "ready", workspace, members };
+      const invitations = workspace.role === "Owner" ? await listPendingInvitations(workspaceId) : null;
+
+      return { status: "ready", workspace, members, invitations };
     } catch (error) {
       return { status: error instanceof ApiUnavailableError ? "unavailable" : "error" };
     }
   }, [workspaceId]);
 
-  const retry = useCallback(() => {
-    setState({ status: "loading" });
+  const refresh = useCallback(() => {
     void fetchState().then(setState);
   }, [fetchState]);
+
+  const retry = useCallback(() => {
+    setState({ status: "loading" });
+    refresh();
+  }, [refresh]);
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
@@ -88,13 +112,40 @@ export default function WorkspacePage(props: PageProps<"/workspaces/[workspaceId
       </nav>
 
       <section className="flex-1 py-12">
-        <WorkspaceContent state={state} onRetry={retry} />
+        <WorkspaceContent
+          state={state}
+          currentUserId={user.id}
+          justCreated={justCreated}
+          onRetry={retry}
+          onInvitationCreated={(invitation) => {
+            setJustCreated(invitation);
+            refresh();
+          }}
+          onDismissJustCreated={() => setJustCreated(null)}
+          onMutated={refresh}
+        />
       </section>
     </main>
   );
 }
 
-function WorkspaceContent({ state, onRetry }: { state: PageState; onRetry: () => void }) {
+function WorkspaceContent({
+  state,
+  currentUserId,
+  justCreated,
+  onRetry,
+  onInvitationCreated,
+  onDismissJustCreated,
+  onMutated,
+}: {
+  state: PageState;
+  currentUserId: string;
+  justCreated: CreatedInvitation | null;
+  onRetry: () => void;
+  onInvitationCreated: (invitation: CreatedInvitation) => void;
+  onDismissJustCreated: () => void;
+  onMutated: () => void;
+}) {
   if (state.status === "loading") {
     return <p className="text-sm text-slate-500">Loading workspace…</p>;
   }
@@ -132,7 +183,8 @@ function WorkspaceContent({ state, onRetry }: { state: PageState; onRetry: () =>
     );
   }
 
-  const { workspace, members } = state;
+  const { workspace, members, invitations } = state;
+  const isOwner = workspace.role === "Owner";
 
   return (
     <div className="flex flex-col gap-10">
@@ -144,15 +196,42 @@ function WorkspaceContent({ state, onRetry }: { state: PageState; onRetry: () =>
 
       <div>
         <h2 className="text-sm font-semibold text-slate-950">Members</h2>
-        <ul className="mt-3 flex flex-col divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
-          {members.map((member) => (
-            <li key={member.userId} className="flex items-center justify-between px-4 py-3">
-              <span className="text-sm text-slate-900">{member.displayName}</span>
-              <span className="text-xs uppercase tracking-wide text-slate-500">{member.role}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-3">
+          <MembersList
+            workspaceId={workspace.id}
+            members={members}
+            currentUserId={currentUserId}
+            canManage={isOwner}
+            onChanged={onMutated}
+          />
+        </div>
       </div>
+
+      {isOwner ? (
+        <div className="flex flex-col gap-8">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-950">Invite someone</h2>
+            <div className="mt-3 flex flex-col gap-4">
+              {justCreated ? (
+                <OneTimeInvitationLink invitation={justCreated} onDismiss={onDismissJustCreated} />
+              ) : (
+                <InviteMemberForm workspaceId={workspace.id} onCreated={onInvitationCreated} />
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-sm font-semibold text-slate-950">Pending invitations</h2>
+            <div className="mt-3">
+              <PendingInvitationsList
+                workspaceId={workspace.id}
+                invitations={invitations ?? []}
+                onRevoked={onMutated}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
