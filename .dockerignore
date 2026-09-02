@@ -5,6 +5,11 @@
 .githooks
 .idea
 .vscode
+docs/prompts
+**/AGENTS.md
+**/AGENTS.override.md
+**/CLAUDE.md
+**/CLAUDE.local.md
 **/bin
 **/obj
 **/node_modules
