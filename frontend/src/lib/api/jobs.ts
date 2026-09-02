@@ -82,7 +82,12 @@ export async function changeJobStatus(
 
 /** True when a mutation failed because the job changed since the client last loaded it. */
 export function isConcurrencyConflict(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 409;
+  return error instanceof ApiError && error.hasCode("stale_version");
+}
+
+/** True when a status change failed because the requested transition isn't allowed from the job's current status. */
+export function isInvalidTransitionConflict(error: unknown): boolean {
+  return error instanceof ApiError && error.hasCode("invalid_job_transition");
 }
 
 function isNotFound(error: unknown): boolean {

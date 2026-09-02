@@ -1,10 +1,10 @@
 using System.Security.Claims;
 using Hireflow.Api.Authentication;
+using Hireflow.Api.Errors;
 using Hireflow.Application.Auth;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Hireflow.Api.Controllers;
 
@@ -36,11 +36,13 @@ public sealed class AuthController(IAuthService authService, IAntiforgery antifo
         return result.Outcome switch
         {
             RegistrationOutcome.Success => Ok(result.User),
-            RegistrationOutcome.EmailAlreadyRegistered => Problem(
+            RegistrationOutcome.EmailAlreadyRegistered => this.ProblemWithCode(
+                StatusCodes.Status409Conflict,
+                ProblemCodes.EmailAlreadyRegistered,
                 title: "Registration failed",
-                detail: "An account with this email already exists.",
-                statusCode: StatusCodes.Status409Conflict),
-            RegistrationOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(request.Password), result.Errors)),
+                detail: "An account with this email already exists."),
+            RegistrationOutcome.ValidationFailed => this.ValidationProblemWithCode(
+                ProblemResultExtensions.ToModelState(nameof(request.Password), result.Errors)),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }
@@ -56,10 +58,11 @@ public sealed class AuthController(IAuthService authService, IAntiforgery antifo
         return result.Outcome switch
         {
             SignInOutcome.Success => Ok(result.User),
-            SignInOutcome.InvalidCredentials => Problem(
+            SignInOutcome.InvalidCredentials => this.ProblemWithCode(
+                StatusCodes.Status401Unauthorized,
+                ProblemCodes.InvalidCredentials,
                 title: "Login failed",
-                detail: "Invalid email or password.",
-                statusCode: StatusCodes.Status401Unauthorized),
+                detail: "Invalid email or password."),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }
@@ -90,16 +93,5 @@ public sealed class AuthController(IAuthService authService, IAntiforgery antifo
         }
 
         return Ok(new AuthenticatedUserResponse(id, email, displayName));
-    }
-
-    private static ModelStateDictionary ToModelState(string key, IReadOnlyList<string> errors)
-    {
-        var modelState = new ModelStateDictionary();
-        foreach (var error in errors)
-        {
-            modelState.AddModelError(key, error);
-        }
-
-        return modelState;
     }
 }

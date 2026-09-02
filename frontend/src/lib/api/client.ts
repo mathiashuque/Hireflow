@@ -3,16 +3,46 @@ import { getApiBaseUrl } from "./config";
 const CSRF_COOKIE_NAME = "XSRF-TOKEN";
 const CSRF_HEADER_NAME = "X-XSRF-TOKEN";
 
-/** A structured API failure, built from the backend's RFC 7807 problem details. */
+/** The general problem codes every canonical error response resolves to when no more specific domain code applies. */
+export type GeneralProblemCode =
+  | "validation_error"
+  | "unauthorized"
+  | "forbidden"
+  | "not_found"
+  | "conflict"
+  | "gone"
+  | "unsupported_media_type"
+  | "internal_error";
+
+/**
+ * A structured API failure, built from the backend's RFC 9457 problem details. `code` is
+ * the stable, machine-readable value control flow should branch on — never `message`,
+ * which is human-readable prose that may change independently. `code` is `null` for a
+ * response this client couldn't parse as a canonical problem (an old/unexpected shape, a
+ * non-JSON gateway error, etc.); treat a `null` code the same as an unrecognized one.
+ */
 export class ApiError extends Error {
   readonly status: number;
+  readonly code: GeneralProblemCode | (string & {}) | null;
+  readonly traceId: string | null;
   readonly fieldErrors: Record<string, string[]>;
 
-  constructor(status: number, message: string, fieldErrors: Record<string, string[]> = {}) {
+  constructor(
+    status: number,
+    message: string,
+    options: { code?: string | null; traceId?: string | null; fieldErrors?: Record<string, string[]> } = {},
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
-    this.fieldErrors = fieldErrors;
+    this.code = options.code ?? null;
+    this.traceId = options.traceId ?? null;
+    this.fieldErrors = options.fieldErrors ?? {};
+  }
+
+  /** True when this error's code matches one of `codes`. Prefer this over status/message checks. */
+  hasCode(...codes: string[]): boolean {
+    return this.code !== null && codes.includes(this.code);
   }
 }
 
@@ -59,6 +89,8 @@ type ProblemDetails = {
   title?: string;
   detail?: string;
   status?: number;
+  code?: string;
+  traceId?: string;
   errors?: Record<string, string[]>;
 };
 
@@ -102,11 +134,11 @@ export async function apiRequest<TResponse>(
 
   if (!response.ok) {
     const problem = payload as ProblemDetails | undefined;
-    throw new ApiError(
-      response.status,
-      problem?.detail ?? problem?.title ?? "The request could not be completed.",
-      problem?.errors ?? {},
-    );
+    throw new ApiError(response.status, problem?.detail ?? problem?.title ?? "The request could not be completed.", {
+      code: problem?.code,
+      traceId: problem?.traceId,
+      fieldErrors: problem?.errors,
+    });
   }
 
   return payload as TResponse;

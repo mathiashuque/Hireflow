@@ -1,9 +1,9 @@
 using Hireflow.Api.Authentication;
+using Hireflow.Api.Errors;
 using Hireflow.Application.Common;
 using Hireflow.Application.Jobs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Hireflow.Api.Controllers;
 
@@ -27,7 +27,8 @@ public sealed class JobOpeningsController(IJobOpeningService jobOpeningService, 
             CreateJobOpeningOutcome.Success => Ok(result.Job),
             CreateJobOpeningOutcome.NotFound => NotFound(),
             CreateJobOpeningOutcome.Forbidden => Forbid(),
-            CreateJobOpeningOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(request.Title), result.Errors)),
+            CreateJobOpeningOutcome.ValidationFailed => this.ValidationProblemWithCode(
+                ProblemResultExtensions.ToModelState(nameof(request.Title), result.Errors)),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }
@@ -44,7 +45,8 @@ public sealed class JobOpeningsController(IJobOpeningService jobOpeningService, 
         {
             ListJobOpeningsOutcome.Success => Ok(result.Jobs),
             ListJobOpeningsOutcome.NotFound => NotFound(),
-            ListJobOpeningsOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(status), result.Errors)),
+            ListJobOpeningsOutcome.ValidationFailed => this.ValidationProblemWithCode(
+                ProblemResultExtensions.ToModelState(nameof(status), result.Errors)),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }
@@ -74,11 +76,13 @@ public sealed class JobOpeningsController(IJobOpeningService jobOpeningService, 
             UpdateJobOpeningOutcome.Success => Ok(result.Job),
             UpdateJobOpeningOutcome.NotFound => NotFound(),
             UpdateJobOpeningOutcome.Forbidden => Forbid(),
-            UpdateJobOpeningOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(request.Title), result.Errors)),
-            UpdateJobOpeningOutcome.ConcurrencyConflict => Problem(
+            UpdateJobOpeningOutcome.ValidationFailed => this.ValidationProblemWithCode(
+                ProblemResultExtensions.ToModelState(nameof(request.Title), result.Errors)),
+            UpdateJobOpeningOutcome.ConcurrencyConflict => this.ProblemWithCode(
+                StatusCodes.Status409Conflict,
+                ProblemCodes.StaleVersion,
                 title: "Job changed since you loaded it",
-                detail: result.Errors.FirstOrDefault(),
-                statusCode: StatusCodes.Status409Conflict),
+                detail: result.Errors.FirstOrDefault()),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }
@@ -98,27 +102,19 @@ public sealed class JobOpeningsController(IJobOpeningService jobOpeningService, 
             ChangeJobOpeningStatusOutcome.Success => Ok(result.Job),
             ChangeJobOpeningStatusOutcome.NotFound => NotFound(),
             ChangeJobOpeningStatusOutcome.Forbidden => Forbid(),
-            ChangeJobOpeningStatusOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(request.Status), result.Errors)),
-            ChangeJobOpeningStatusOutcome.InvalidTransition => Problem(
+            ChangeJobOpeningStatusOutcome.ValidationFailed => this.ValidationProblemWithCode(
+                ProblemResultExtensions.ToModelState(nameof(request.Status), result.Errors)),
+            ChangeJobOpeningStatusOutcome.InvalidTransition => this.ProblemWithCode(
+                StatusCodes.Status409Conflict,
+                ProblemCodes.InvalidJobTransition,
                 title: "Invalid status transition",
-                detail: result.Errors.FirstOrDefault(),
-                statusCode: StatusCodes.Status409Conflict),
-            ChangeJobOpeningStatusOutcome.ConcurrencyConflict => Problem(
+                detail: result.Errors.FirstOrDefault()),
+            ChangeJobOpeningStatusOutcome.ConcurrencyConflict => this.ProblemWithCode(
+                StatusCodes.Status409Conflict,
+                ProblemCodes.StaleVersion,
                 title: "Job changed since you loaded it",
-                detail: result.Errors.FirstOrDefault(),
-                statusCode: StatusCodes.Status409Conflict),
+                detail: result.Errors.FirstOrDefault()),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
-    }
-
-    private static ModelStateDictionary ToModelState(string key, IReadOnlyList<string> errors)
-    {
-        var modelState = new ModelStateDictionary();
-        foreach (var error in errors)
-        {
-            modelState.AddModelError(key, error);
-        }
-
-        return modelState;
     }
 }

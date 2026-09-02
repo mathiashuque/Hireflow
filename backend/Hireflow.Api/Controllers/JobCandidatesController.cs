@@ -1,9 +1,9 @@
 using Hireflow.Api.Authentication;
+using Hireflow.Api.Errors;
 using Hireflow.Application.Candidates;
 using Hireflow.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Hireflow.Api.Controllers;
 
@@ -29,15 +29,18 @@ public sealed class JobCandidatesController(ICandidateService candidateService, 
             CreateCandidateOutcome.Success => Ok(result.Candidate),
             CreateCandidateOutcome.NotFound => NotFound(),
             CreateCandidateOutcome.Forbidden => Forbid(),
-            CreateCandidateOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(request.Name), result.Errors)),
-            CreateCandidateOutcome.JobNotOpen => Problem(
+            CreateCandidateOutcome.ValidationFailed => this.ValidationProblemWithCode(
+                ProblemResultExtensions.ToModelState(nameof(request.Name), result.Errors)),
+            CreateCandidateOutcome.JobNotOpen => this.ProblemWithCode(
+                StatusCodes.Status409Conflict,
+                ProblemCodes.JobNotOpen,
                 title: "Job is not open",
-                detail: result.Errors.FirstOrDefault(),
-                statusCode: StatusCodes.Status409Conflict),
-            CreateCandidateOutcome.DuplicateEmail => Problem(
+                detail: result.Errors.FirstOrDefault()),
+            CreateCandidateOutcome.DuplicateEmail => this.ProblemWithCode(
+                StatusCodes.Status409Conflict,
+                ProblemCodes.DuplicateCandidateEmail,
                 title: "Candidate already exists",
-                detail: result.Errors.FirstOrDefault(),
-                statusCode: StatusCodes.Status409Conflict),
+                detail: result.Errors.FirstOrDefault()),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }
@@ -55,19 +58,9 @@ public sealed class JobCandidatesController(ICandidateService candidateService, 
         {
             ListCandidatesOutcome.Success => Ok(result.Candidates),
             ListCandidatesOutcome.NotFound => NotFound(),
-            ListCandidatesOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(stage), result.Errors)),
+            ListCandidatesOutcome.ValidationFailed => this.ValidationProblemWithCode(
+                ProblemResultExtensions.ToModelState(nameof(stage), result.Errors)),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
-    }
-
-    private static ModelStateDictionary ToModelState(string key, IReadOnlyList<string> errors)
-    {
-        var modelState = new ModelStateDictionary();
-        foreach (var error in errors)
-        {
-            modelState.AddModelError(key, error);
-        }
-
-        return modelState;
     }
 }

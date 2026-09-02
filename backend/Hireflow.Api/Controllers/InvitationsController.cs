@@ -1,4 +1,5 @@
 using Hireflow.Api.Authentication;
+using Hireflow.Api.Errors;
 using Hireflow.Application.Common;
 using Hireflow.Application.Workspaces;
 using Microsoft.AspNetCore.Authorization;
@@ -27,10 +28,11 @@ public sealed class InvitationsController(IWorkspaceInvitationService invitation
             AcceptInvitationOutcome.Success => Ok(new AcceptedInvitationResponse(result.WorkspaceId!.Value)),
             // Deliberately identical for invalid, expired, revoked, already-used, and
             // wrong-account tokens: none of those states may be distinguished by a caller.
-            AcceptInvitationOutcome.InvalidOrExpired => Problem(
+            AcceptInvitationOutcome.InvalidOrExpired => this.ProblemWithCode(
+                StatusCodes.Status410Gone,
+                ProblemCodes.InvitationUnavailable,
                 title: "Invitation unavailable",
-                detail: "This invitation link is invalid, expired, or no longer available.",
-                statusCode: StatusCodes.Status410Gone),
+                detail: "This invitation link is invalid, expired, or no longer available."),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }

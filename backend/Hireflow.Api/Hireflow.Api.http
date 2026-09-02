@@ -1,6 +1,80 @@
-@Hireflow.Api_HostAddress = http://localhost:5006
+### Hireflow API — local manual smoke requests
+#
+# Local, cookie/CSRF-aware examples for the "VS Code REST Client" extension (or any
+# .http-compatible tool). Contains no credentials, live IDs, or tokens — every value
+# below is a synthetic placeholder for local development only.
+#
+# Cookie/CSRF sequence, every time you start a fresh session:
+#   1. Run "1. Prime CSRF token" below. The response sets an XSRF-TOKEN cookie.
+#   2. Copy that cookie's value from the response and paste it as @xsrfToken below.
+#   3. Run "2. Register" (or "3. Login" if the account already exists). The response
+#      sets the Hireflow.Auth session cookie your client now holds for this host.
+#   4. GET requests need no further setup. Every other mutating request also needs a
+#      fresh CSRF token/header pair — repeat steps 1–2 if X-XSRF-TOKEN is rejected.
+#
+# Adjust @host if your API isn't on the default `docker compose` port (8080); a plain
+# `dotnet run` from Hireflow.Api instead listens on http://localhost:5006 by default.
 
-GET {{Hireflow.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+@host = http://localhost:8080
+@xsrfToken = REPLACE_WITH_XSRF-TOKEN_COOKIE_VALUE_FROM_STEP_1
+@email = dev-{{$timestamp}}@example.com
+@password = DevPassword123!
 
-###
+### 0. Health check (anonymous, no cookies needed)
+GET {{host}}/api/health
+
+### 1. Prime CSRF token — copy the XSRF-TOKEN cookie from this response into @xsrfToken above
+GET {{host}}/api/auth/csrf
+
+### 2. Register a new account (sets the session cookie for this client)
+POST {{host}}/api/auth/register
+Content-Type: application/json
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "displayName": "Dev Example"
+}
+
+### 3. Login (alternative to registering, once an account already exists)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### 4. Who am I
+GET {{host}}/api/auth/me
+
+### 5. Create a workspace (repeat step 1 first if X-XSRF-TOKEN is rejected)
+POST {{host}}/api/workspaces
+Content-Type: application/json
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "name": "Example Workspace"
+}
+
+### 6. List my workspaces
+GET {{host}}/api/workspaces
+
+### 7. Workspace recruiting overview — replace {workspaceId} with a real ID from step 5/6
+GET {{host}}/api/workspaces/{workspaceId}/overview
+
+### 8. Create a job opening under that workspace
+POST {{host}}/api/workspaces/{workspaceId}/jobs
+Content-Type: application/json
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "title": "Example Role",
+  "description": "Optional description"
+}
+
+### 9. Log out
+POST {{host}}/api/auth/logout
+X-XSRF-TOKEN: {{xsrfToken}}
