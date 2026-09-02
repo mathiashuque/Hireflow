@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { getSiteOrigin } from "@/lib/seo/site-origin";
+import { privateRouteMetadata } from "@/lib/seo/landing";
 import "./globals.css";
 
 /**
@@ -7,6 +10,11 @@ import "./globals.css";
  * `/en-US`) — at that point no locale has been validated, so this renders
  * a minimal, locale-neutral 404 rather than guessing a language.
  */
+export const metadata: Metadata = {
+  metadataBase: new URL(getSiteOrigin()),
+  ...privateRouteMetadata,
+};
+
 export default function GlobalNotFound() {
   return (
     <html lang="en">
