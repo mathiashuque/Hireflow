@@ -2,6 +2,8 @@
 
 import { useId, useState } from "react";
 import { CANDIDATE_STAGES, type CandidateStage } from "@/lib/api/candidates";
+import { Button } from "@/components/ui/Button";
+import { AnimatedStatus } from "@/components/ui/StatusBanner";
 
 type CandidateStageMoveControlProps = {
   currentStage: CandidateStage;
@@ -46,7 +48,7 @@ export function CandidateStageMoveControl({ currentStage, disabled, onMove, labe
           value={target}
           onChange={(event) => setTarget(event.target.value as CandidateStage)}
           disabled={disabled || isMoving}
-          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-950 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+          className="rounded-lg border border-border-strong bg-surface px-2 py-1 text-xs text-text-primary outline-none transition focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand-soft disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
         >
           {CANDIDATE_STAGES.map((stage) => (
             <option key={stage} value={stage}>
@@ -54,20 +56,15 @@ export function CandidateStageMoveControl({ currentStage, disabled, onMove, labe
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          onClick={handleMove}
-          disabled={disabled || isMoving || isNoOp}
-          className="rounded-lg bg-slate-900 px-3 py-1 text-xs font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-400"
-        >
+        <Button size="sm" variant="primary" disabled={disabled || isMoving || isNoOp} onClick={handleMove}>
           {isMoving ? "Moving…" : "Move"}
-        </button>
+        </Button>
       </div>
-      {error ? (
-        <p role="alert" className="text-xs text-red-700">
+      <AnimatedStatus id={error}>
+        <p role="alert" className="text-xs text-danger-text">
           {error}
         </p>
-      ) : null}
+      </AnimatedStatus>
     </div>
   );
 }

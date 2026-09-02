@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion } from "motion/react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
 import { getJob, type JobOpening } from "@/lib/api/jobs";
@@ -22,6 +23,15 @@ import {
 import { JobStatusBadge } from "@/components/JobStatusBadge";
 import { CandidateDetailsForm } from "@/components/CandidateDetailsForm";
 import { CandidateStageMoveControl } from "@/components/CandidateStageMoveControl";
+import { AppShell } from "@/components/shell/AppShell";
+import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { SkeletonBlock } from "@/components/ui/Skeleton";
+import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
+import { Reveal } from "@/components/motion/Reveal";
+import { collapsePanel, staggerContainer, staggerItem } from "@/lib/motion";
 
 type PageState =
   | { status: "loading" }
@@ -95,9 +105,9 @@ export default function JobCandidatesPage(props: PageProps<"/workspaces/[workspa
 
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6">
-        <p className="text-sm text-slate-500">Loading your account…</p>
-      </main>
+      <AppShell maxWidth="2xl">
+        <SkeletonBlock label="Loading your account…" />
+      </AppShell>
     );
   }
 
@@ -126,17 +136,17 @@ export default function JobCandidatesPage(props: PageProps<"/workspaces/[workspa
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-8 sm:px-10">
-      <nav className="flex items-center justify-between">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-slate-950">
-          Hireflow
-        </Link>
-        <Link href={`/workspaces/${workspaceId}/jobs/${jobId}`} className="text-sm font-medium text-indigo-600 hover:underline">
-          Back to job
-        </Link>
-      </nav>
+    <AppShell maxWidth="2xl">
+      <Breadcrumbs
+        items={[
+          { label: "Workspace", href: `/workspaces/${workspaceId}` },
+          { label: "Jobs", href: `/workspaces/${workspaceId}/jobs` },
+          { label: state.status === "ready" ? state.job.title : "Job", href: `/workspaces/${workspaceId}/jobs/${jobId}` },
+          { label: "Candidates" },
+        ]}
+      />
 
-      <section className="flex-1 py-12">
+      <div className="mt-6">
         <BoardContent
           state={state}
           showAddForm={showAddForm}
@@ -150,8 +160,8 @@ export default function JobCandidatesPage(props: PageProps<"/workspaces/[workspa
           }}
           onMove={handleMove}
         />
-      </section>
-    </main>
+      </div>
+    </AppShell>
   );
 }
 
@@ -175,17 +185,17 @@ function BoardContent({
   onMove: (candidate: Candidate, target: CandidateStage) => Promise<void>;
 }) {
   if (state.status === "loading") {
-    return <p className="text-sm text-slate-500">Loading candidates…</p>;
+    return <SkeletonBlock label="Loading candidates…" />;
   }
 
   if (state.status === "not-found") {
     return (
       <div className="max-w-md">
-        <h1 className="text-xl font-semibold text-slate-950">Job unavailable</h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <h1 className="text-xl font-semibold text-text-primary">Job unavailable</h1>
+        <p className="mt-2 text-sm text-text-secondary">
           This job doesn&apos;t exist, or you don&apos;t have access to it.
         </p>
-        <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline">
+        <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
           Back to your workspaces
         </Link>
       </div>
@@ -195,18 +205,14 @@ function BoardContent({
   if (state.status === "unavailable" || state.status === "error") {
     return (
       <div className="flex max-w-md flex-col items-start gap-3">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-text-secondary">
           {state.status === "unavailable"
             ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
             : "Something went wrong loading candidates."}
         </p>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-        >
+        <Button variant="primary" size="sm" onClick={onRetry}>
           Try again
-        </button>
+        </Button>
       </div>
     );
   }
@@ -221,67 +227,73 @@ function BoardContent({
   }));
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <JobStatusBadge status={job.status} />
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{job.title}</h1>
-          <p className="mt-1 text-sm text-slate-500">Hiring board for this job</p>
-        </div>
-
-        {canManage && !showAddForm ? (
-          <button
-            type="button"
-            disabled={!canAdd}
-            onClick={onAddClick}
-            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Add candidate
-          </button>
-        ) : null}
+    <Reveal className="flex flex-col gap-8">
+      <PageHeader
+        title={job.title}
+        description="Hiring board for this job"
+        actions={
+          canManage && !showAddForm ? (
+            <Button variant="primary" size="sm" disabled={!canAdd} onClick={onAddClick}>
+              Add candidate
+            </Button>
+          ) : undefined
+        }
+      />
+      <div className="-mt-4">
+        <JobStatusBadge status={job.status} />
       </div>
 
-      {moveNotice ? (
-        <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          {moveNotice}
-        </p>
-      ) : null}
+      <AnimatedStatus id={moveNotice}>
+        <StatusBanner tone="warning">{moveNotice}</StatusBanner>
+      </AnimatedStatus>
 
       {canManage && !canAdd ? (
-        <p className="text-sm text-amber-800">
+        <p className="text-sm text-warning-text">
           {job.status === "Draft"
             ? "This job is still a Draft. Open it before adding candidates."
             : "This job is Closed. Reopen it to add new candidates; existing candidates can still be moved and edited."}
         </p>
       ) : null}
 
-      {showAddForm && canAdd ? (
-        <AddCandidatePanel workspaceId={workspace.id} jobId={job.id} onAdded={onAdded} onCancel={onAddCancel} />
-      ) : null}
+      <motion.div
+        variants={collapsePanel}
+        initial={false}
+        animate={showAddForm && canAdd ? "show" : "hidden"}
+        className={showAddForm && canAdd ? "overflow-visible" : "overflow-hidden"}
+      >
+        {showAddForm && canAdd ? (
+          <AddCandidatePanel workspaceId={workspace.id} jobId={job.id} onAdded={onAdded} onCancel={onAddCancel} />
+        ) : null}
+      </motion.div>
 
       <div role="group" aria-label="Hiring pipeline board" className="flex gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-5 sm:overflow-visible">
         {columns.map(({ stage, candidates: stageCandidates }) => (
           <div
             key={stage}
             aria-label={`${stage}, ${stageCandidates.length} candidate${stageCandidates.length === 1 ? "" : "s"}`}
-            className="flex w-64 shrink-0 flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:w-auto"
+            className="flex w-64 shrink-0 flex-col gap-3 rounded-lg border border-border bg-surface-muted p-3 sm:w-auto"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-950">{stage}</h2>
-              <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+              <h2 className="text-sm font-semibold text-text-primary">{stage}</h2>
+              <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-text-secondary ring-1 ring-border">
                 {stageCandidates.length}
               </span>
             </div>
 
             {stageCandidates.length === 0 ? (
-              <p className="text-xs text-slate-400">No candidates.</p>
+              <p className="text-xs text-text-muted">No candidates.</p>
             ) : (
-              <ul className="flex flex-col gap-2">
+              <motion.ul initial="hidden" animate="show" variants={staggerContainer} layout className="flex flex-col gap-2">
                 {stageCandidates.map((candidate) => (
-                  <li key={candidate.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                  <motion.li
+                    key={candidate.id}
+                    layout
+                    variants={staggerItem}
+                    className="rounded-lg border border-border bg-surface p-3"
+                  >
                     <Link
                       href={`/workspaces/${workspace.id}/candidates/${candidate.id}`}
-                      className="text-sm font-medium text-slate-950 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+                      className="text-sm font-medium text-text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                     >
                       {candidate.name}
                     </Link>
@@ -294,16 +306,16 @@ function BoardContent({
                         />
                       </div>
                     ) : null}
-                  </li>
+                  </motion.li>
                 ))}
-              </ul>
+              </motion.ul>
             )}
           </div>
         ))}
       </div>
 
-      {!canManage ? <p className="text-xs text-slate-400">You have read-only access to this job&apos;s candidates.</p> : null}
-    </div>
+      {!canManage ? <p className="text-xs text-text-muted">You have read-only access to this job&apos;s candidates.</p> : null}
+    </Reveal>
   );
 }
 
@@ -319,9 +331,9 @@ function AddCandidatePanel({
   onCancel: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-950">Add candidate</h2>
-      <p className="mt-1 text-sm text-slate-500">New candidates start in the Applied stage.</p>
+    <Card className="p-4">
+      <h2 className="text-sm font-semibold text-text-primary">Add candidate</h2>
+      <p className="mt-1 text-sm text-text-muted">New candidates start in the Applied stage.</p>
       <div className="mt-4">
         <CandidateDetailsForm
           submitLabel="Add candidate"
@@ -349,6 +361,6 @@ function AddCandidatePanel({
           }}
         />
       </div>
-    </div>
+    </Card>
   );
 }

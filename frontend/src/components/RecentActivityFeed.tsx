@@ -1,23 +1,32 @@
+"use client";
+
 import Link from "next/link";
+import { motion } from "motion/react";
 import type { OverviewActivity } from "@/lib/api/overview";
 import { formatRelativeTime } from "@/lib/relativeTime";
+import { staggerContainer, staggerItem } from "@/lib/motion";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export function RecentActivityFeed({ workspaceId, activity }: { workspaceId: string; activity: OverviewActivity[] }) {
   if (activity.length === 0) {
-    return <p className="text-sm text-slate-500">No recent activity yet.</p>;
+    return <EmptyState title="No recent activity yet" />;
   }
 
   return (
-    <ol className="flex flex-col gap-3">
+    <motion.ol initial="hidden" animate="show" variants={staggerContainer} className="flex flex-col gap-3">
       {activity.map((entry) => (
-        <li key={entry.id} className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <p className="text-sm text-slate-800">{describe(workspaceId, entry)}</p>
-          <p className="mt-1 text-xs text-slate-500">
+        <motion.li
+          key={entry.id}
+          variants={staggerItem}
+          className="rounded-lg border border-border bg-surface px-4 py-3"
+        >
+          <p className="text-sm text-text-primary">{describe(workspaceId, entry)}</p>
+          <p className="mt-1 text-xs text-text-muted">
             {entry.actorDisplayName ?? "A former member"} · {formatRelativeTime(entry.occurredAt)}
           </p>
-        </li>
+        </motion.li>
       ))}
-    </ol>
+    </motion.ol>
   );
 }
 
@@ -25,7 +34,7 @@ function describe(workspaceId: string, entry: OverviewActivity) {
   const jobLink = entry.jobId ? (
     <Link
       href={`/workspaces/${workspaceId}/jobs/${entry.jobId}/candidates`}
-      className="font-medium text-indigo-600 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+      className="font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
     >
       {entry.jobTitle}
     </Link>
@@ -34,7 +43,7 @@ function describe(workspaceId: string, entry: OverviewActivity) {
   const candidateLink = entry.candidateId ? (
     <Link
       href={`/workspaces/${workspaceId}/candidates/${entry.candidateId}`}
-      className="font-medium text-indigo-600 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+      className="font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
     >
       {entry.candidateName}
     </Link>

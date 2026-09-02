@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { FormField } from "@/components/FormField";
+import { Button } from "@/components/ui/Button";
+import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
 import { createWorkspace, type WorkspaceDetail } from "@/lib/api/workspaces";
 
@@ -41,11 +43,11 @@ export function WorkspaceCreateForm({ onCreated }: WorkspaceCreateFormProps) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex w-full max-w-sm flex-col gap-4">
-      {formError ? (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+      <AnimatedStatus id={formError}>
+        <StatusBanner tone="danger" role="alert">
           {formError}
-        </p>
-      ) : null}
+        </StatusBanner>
+      </AnimatedStatus>
 
       <FormField
         id="workspaceName"
@@ -58,13 +60,9 @@ export function WorkspaceCreateForm({ onCreated }: WorkspaceCreateFormProps) {
         error={fieldErrors.Name?.[0]}
       />
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="mt-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-400"
-      >
+      <Button type="submit" variant="primary" disabled={isSubmitting} className="mt-2">
         {isSubmitting ? "Creating workspace…" : "Create workspace"}
-      </button>
+      </Button>
     </form>
   );
 }

@@ -10,6 +10,11 @@ import { WorkspaceNav } from "@/components/WorkspaceNav";
 import { OverviewMetricsCards } from "@/components/OverviewMetricsCards";
 import { JobWorkloadList } from "@/components/JobWorkloadList";
 import { RecentActivityFeed } from "@/components/RecentActivityFeed";
+import { AppShell } from "@/components/shell/AppShell";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Button } from "@/components/ui/Button";
+import { SkeletonBlock } from "@/components/ui/Skeleton";
+import { Reveal } from "@/components/motion/Reveal";
 
 type PageState =
   | { status: "loading" }
@@ -70,69 +75,50 @@ export default function WorkspaceOverviewPage(props: PageProps<"/workspaces/[wor
 
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6">
-        <p className="text-sm text-slate-500">Loading your account…</p>
-      </main>
+      <AppShell>
+        <SkeletonBlock label="Loading your account…" />
+      </AppShell>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col px-6 py-8 sm:px-10">
-      <nav className="flex items-center justify-between">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-slate-950">
-          Hireflow
-        </Link>
-        <Link href="/dashboard" className="text-sm font-medium text-indigo-600 hover:underline">
-          Back to workspaces
-        </Link>
-      </nav>
+    <AppShell>
+      {state.status === "loading" && <SkeletonBlock label="Loading overview…" />}
 
-      <section className="flex-1 py-12">
-        {state.status === "loading" && <p className="text-sm text-slate-500">Loading overview…</p>}
+      {state.status === "not-found" && (
+        <div className="max-w-md">
+          <h1 className="text-xl font-semibold text-text-primary">Workspace unavailable</h1>
+          <p className="mt-2 text-sm text-text-secondary">
+            This workspace doesn&apos;t exist, or you don&apos;t have access to it.
+          </p>
+          <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
+            Back to your workspaces
+          </Link>
+        </div>
+      )}
 
-        {state.status === "not-found" && (
-          <div className="max-w-md">
-            <h1 className="text-xl font-semibold text-slate-950">Workspace unavailable</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              This workspace doesn&apos;t exist, or you don&apos;t have access to it.
-            </p>
-            <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline">
-              Back to your workspaces
-            </Link>
-          </div>
-        )}
+      {(state.status === "unavailable" || state.status === "error") && (
+        <div className="flex max-w-md flex-col items-start gap-3">
+          <p className="text-sm text-text-secondary">
+            {state.status === "unavailable"
+              ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
+              : "Something went wrong loading this workspace."}
+          </p>
+          <Button variant="primary" size="sm" onClick={retry}>
+            Try again
+          </Button>
+        </div>
+      )}
 
-        {(state.status === "unavailable" || state.status === "error") && (
-          <div className="flex max-w-md flex-col items-start gap-3">
-            <p className="text-sm text-slate-600">
-              {state.status === "unavailable"
-                ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
-                : "Something went wrong loading this workspace."}
-            </p>
-            <button
-              type="button"
-              onClick={retry}
-              className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-            >
-              Try again
-            </button>
-          </div>
-        )}
-
-        {state.status === "ready" && <WorkspaceOverviewContent overview={state.overview} />}
-      </section>
-    </main>
+      {state.status === "ready" && <WorkspaceOverviewContent overview={state.overview} />}
+    </AppShell>
   );
 }
 
 function WorkspaceOverviewContent({ overview }: { overview: WorkspaceOverview }) {
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-600">{overview.role}</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">{overview.name}</h1>
-        <p className="mt-1 text-sm text-slate-500">/{overview.slug}</p>
-      </div>
+    <Reveal className="flex flex-col gap-8">
+      <PageHeader eyebrow={overview.role} title={overview.name} description={`/${overview.slug}`} />
 
       <WorkspaceNav workspaceId={overview.workspaceId} />
 
@@ -143,18 +129,18 @@ function WorkspaceOverviewContent({ overview }: { overview: WorkspaceOverview })
       />
 
       <div>
-        <h2 className="text-sm font-semibold text-slate-950">Active jobs</h2>
+        <h2 className="text-sm font-semibold text-text-primary">Active jobs</h2>
         <div className="mt-3">
           <JobWorkloadList workspaceId={overview.workspaceId} workload={overview.workload} />
         </div>
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-slate-950">Recent activity</h2>
+        <h2 className="text-sm font-semibold text-text-primary">Recent activity</h2>
         <div className="mt-3">
           <RecentActivityFeed workspaceId={overview.workspaceId} activity={overview.recentActivity} />
         </div>
       </div>
-    </div>
+    </Reveal>
   );
 }

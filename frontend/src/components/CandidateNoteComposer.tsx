@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { CANDIDATE_NOTE_MAX_LENGTH } from "@/lib/api/candidates";
+import { Button } from "@/components/ui/Button";
+import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 
 type CandidateNoteComposerProps = {
   onSubmit: (content: string) => Promise<void>;
@@ -45,13 +47,13 @@ export function CandidateNoteComposer({ onSubmit }: CandidateNoteComposerProps) 
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex w-full max-w-xl flex-col gap-2">
-      {formError ? (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+      <AnimatedStatus id={formError}>
+        <StatusBanner tone="danger" role="alert">
           {formError}
-        </p>
-      ) : null}
+        </StatusBanner>
+      </AnimatedStatus>
 
-      <label htmlFor="candidateNoteContent" className="text-sm font-medium text-slate-800">
+      <label htmlFor="candidateNoteContent" className="text-sm font-medium text-text-primary">
         Add an internal note
       </label>
       <textarea
@@ -61,20 +63,16 @@ export function CandidateNoteComposer({ onSubmit }: CandidateNoteComposerProps) 
         disabled={isSubmitting}
         rows={4}
         placeholder="Share interview feedback or recruiting context…"
-        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+        className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand-soft disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
       />
 
       <div className="flex items-center justify-between gap-3">
-        <p className={`text-xs ${isOverLimit ? "text-red-600" : "text-slate-400"}`}>
+        <p className={`text-xs ${isOverLimit ? "text-danger-text" : "text-text-muted"}`}>
           {content.length} / {CANDIDATE_NOTE_MAX_LENGTH}
         </p>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-400"
-        >
+        <Button type="submit" variant="primary" size="sm" disabled={isSubmitting}>
           {isSubmitting ? "Adding…" : "Add note"}
-        </button>
+        </Button>
       </div>
     </form>
   );

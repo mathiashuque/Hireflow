@@ -27,6 +27,12 @@ import { CandidateStageMoveControl } from "@/components/CandidateStageMoveContro
 import { CandidateStageHistoryTimeline } from "@/components/CandidateStageHistoryTimeline";
 import { CandidateNotesTimeline } from "@/components/CandidateNotesTimeline";
 import { CandidateNoteComposer } from "@/components/CandidateNoteComposer";
+import { AppShell } from "@/components/shell/AppShell";
+import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
+import { Button } from "@/components/ui/Button";
+import { SkeletonBlock } from "@/components/ui/Skeleton";
+import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
+import { Reveal } from "@/components/motion/Reveal";
 
 type PageState =
   | { status: "loading" }
@@ -115,9 +121,9 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
 
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6">
-        <p className="text-sm text-slate-500">Loading your account…</p>
-      </main>
+      <AppShell>
+        <SkeletonBlock label="Loading your account…" />
+      </AppShell>
     );
   }
 
@@ -203,32 +209,30 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
     }
   }
 
-  return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-8 sm:px-10">
-      <nav className="flex items-center justify-between">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-slate-950">
-          Hireflow
-        </Link>
-        {state.status === "ready" ? (
-          <Link
-            href={`/workspaces/${workspaceId}/jobs/${state.candidate.jobOpeningId}/candidates`}
-            className="text-sm font-medium text-indigo-600 hover:underline"
-          >
-            Back to candidates
-          </Link>
-        ) : null}
-      </nav>
+  const candidatesHref =
+    state.status === "ready" ? `/workspaces/${workspaceId}/jobs/${state.candidate.jobOpeningId}/candidates` : undefined;
 
-      <section className="flex-1 py-12">
-        {state.status === "loading" && <p className="text-sm text-slate-500">Loading candidate…</p>}
+  return (
+    <AppShell>
+      <Breadcrumbs
+        items={[
+          { label: "Workspace", href: `/workspaces/${workspaceId}` },
+          { label: "Jobs", href: `/workspaces/${workspaceId}/jobs` },
+          ...(candidatesHref ? [{ label: "Candidates", href: candidatesHref }] : []),
+          { label: state.status === "ready" ? state.candidate.name : "Candidate" },
+        ]}
+      />
+
+      <div className="mt-6">
+        {state.status === "loading" && <SkeletonBlock label="Loading candidate…" />}
 
         {state.status === "not-found" && (
           <div className="max-w-md">
-            <h1 className="text-xl font-semibold text-slate-950">Candidate unavailable</h1>
-            <p className="mt-2 text-sm text-slate-600">
+            <h1 className="text-xl font-semibold text-text-primary">Candidate unavailable</h1>
+            <p className="mt-2 text-sm text-text-secondary">
               This candidate doesn&apos;t exist, or you don&apos;t have access to it.
             </p>
-            <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline">
+            <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
               Back to your workspaces
             </Link>
           </div>
@@ -236,18 +240,14 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
 
         {(state.status === "unavailable" || state.status === "error") && (
           <div className="flex max-w-md flex-col items-start gap-3">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-text-secondary">
               {state.status === "unavailable"
                 ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
                 : "Something went wrong loading this candidate."}
             </p>
-            <button
-              type="button"
-              onClick={retry}
-              className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-            >
+            <Button variant="primary" size="sm" onClick={retry}>
               Try again
-            </button>
+            </Button>
           </div>
         )}
 
@@ -266,8 +266,8 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
             onAddNote={handleAddNote}
           />
         )}
-      </section>
-    </main>
+      </div>
+    </AppShell>
   );
 }
 
@@ -297,19 +297,19 @@ function CandidateDetail({
   onAddNote: (content: string) => Promise<void>;
 }) {
   return (
-    <div className="flex flex-col gap-8">
-      {conflictMessage ? (
-        <p role="alert" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+    <Reveal className="flex flex-col gap-8">
+      <AnimatedStatus id={conflictMessage}>
+        <StatusBanner tone="warning" role="alert">
           {conflictMessage}
-        </p>
-      ) : null}
+        </StatusBanner>
+      </AnimatedStatus>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <CandidateStageBadge stage={candidate.stage} />
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{candidate.name}</h1>
-          <p className="mt-1 text-sm text-slate-600">{candidate.email}</p>
-          <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-text-primary">{candidate.name}</h1>
+          <p className="mt-1 text-sm text-text-secondary">{candidate.email}</p>
+          <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
             <div>
               <dt className="inline font-medium">Added</dt> <dd className="inline">{new Date(candidate.createdAt).toLocaleString()}</dd>
             </div>
@@ -320,19 +320,15 @@ function CandidateDetail({
         </div>
 
         {canManage && !isEditing ? (
-          <button
-            type="button"
-            onClick={onEdit}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-          >
+          <Button size="sm" onClick={onEdit}>
             Edit
-          </button>
+          </Button>
         ) : null}
       </div>
 
       {canManage ? (
         <div>
-          <h2 className="text-sm font-semibold text-slate-950">Move stage</h2>
+          <h2 className="text-sm font-semibold text-text-primary">Move stage</h2>
           <div className="mt-2">
             <CandidateStageMoveControl currentStage={candidate.stage} labelPrefix="Move candidate to" onMove={onMoveStage} />
           </div>
@@ -350,17 +346,17 @@ function CandidateDetail({
         />
       ) : null}
 
-      {!canManage ? <p className="text-xs text-slate-400">You have read-only access to this candidate.</p> : null}
+      {!canManage ? <p className="text-xs text-text-muted">You have read-only access to this candidate.</p> : null}
 
       <div>
-        <h2 className="text-sm font-semibold text-slate-950">Stage history</h2>
+        <h2 className="text-sm font-semibold text-text-primary">Stage history</h2>
         <div className="mt-2">
           <CandidateStageHistoryTimeline history={history} />
         </div>
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-slate-950">Internal notes</h2>
+        <h2 className="text-sm font-semibold text-text-primary">Internal notes</h2>
         <div className="mt-2">
           <CandidateNoteComposer onSubmit={onAddNote} />
         </div>
@@ -368,6 +364,6 @@ function CandidateDetail({
           <CandidateNotesTimeline notes={notes} />
         </div>
       </div>
-    </div>
+    </Reveal>
   );
 }
