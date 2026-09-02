@@ -3,8 +3,11 @@ using Hireflow.Application.Workspaces;
 using Hireflow.Infrastructure;
 using Hireflow.Infrastructure.Configuration;
 using Hireflow.Infrastructure.Health;
+using Hireflow.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace Hireflow.Tests.Unit;
 
@@ -27,6 +30,48 @@ public sealed class ConfigurationValidationTests
         Assert.Contains("ConnectionStrings:Database", exception.Message);
         Assert.DoesNotContain("Host=", exception.Message);
         Assert.DoesNotContain("Password", exception.Message);
+    }
+
+    [Fact]
+    public void AddInfrastructure_accepts_a_neon_postgresql_uri()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Database"] =
+                    "postgresql://neondb_owner:p%40ss%3Aword@ep-example-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+            })
+            .Build();
+
+        using var provider = new ServiceCollection().AddInfrastructure(configuration).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<HireflowDbContext>();
+        var parsed = new NpgsqlConnectionStringBuilder(dbContext.Database.GetConnectionString());
+
+        Assert.Equal("ep-example-pooler.us-east-2.aws.neon.tech", parsed.Host);
+        Assert.Equal(5432, parsed.Port);
+        Assert.Equal("neondb", parsed.Database);
+        Assert.Equal("neondb_owner", parsed.Username);
+        Assert.Equal("p@ss:word", parsed.Password);
+        Assert.Equal(SslMode.Require, parsed.SslMode);
+        Assert.Equal(ChannelBinding.Require, parsed.ChannelBinding);
+    }
+
+    [Fact]
+    public void AddInfrastructure_rejects_a_malformed_postgresql_uri_without_exposing_it()
+    {
+        const string secret = "do-not-log-this";
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Database"] = $"postgresql://owner:{secret}@host-without-database"
+            })
+            .Build();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => new ServiceCollection().AddInfrastructure(configuration));
+
+        Assert.Contains("PostgreSQL URI", exception.Message);
+        Assert.DoesNotContain(secret, exception.ToString());
     }
 
     [Fact]
