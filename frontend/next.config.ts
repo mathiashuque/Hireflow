@@ -41,9 +41,13 @@ function resolveProxyTarget(): string | undefined {
 }
 
 const proxyTarget = resolveProxyTarget();
+const isVercelBuild = process.env.VERCEL === "1";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // The Docker image copies Next's standalone server, while Vercel packages the
+  // application with its own build integration. Forcing standalone output there can
+  // remove tracing files before Vercel's onBuildComplete hook reads them.
+  ...(isVercelBuild ? {} : { output: "standalone" as const }),
   async rewrites() {
     if (!proxyTarget) {
       return [];
