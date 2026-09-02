@@ -51,7 +51,10 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Skip Next.js internals, static assets, favicon, and any path with a file extension.
-    "/((?!_next/|api/|favicon.ico|.*\\..*).*)",
+    // Skip Next.js internals, static assets, favicon, any path with a file extension,
+    // and every generated SEO/metadata route file convention (robots.txt, sitemap.xml,
+    // and manifest.webmanifest already have an extension and are covered by the last
+    // alternative; the icon/social-image routes below do not).
+    "/((?!_next/|api/|favicon.ico|icon1|icon2|icon|apple-icon|opengraph-image|twitter-image|.*\\..*).*)",
   ],
 };

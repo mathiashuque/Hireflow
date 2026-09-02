@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
@@ -6,6 +6,7 @@ import { MotionProvider } from "@/components/motion/MotionProvider";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
 import { getDictionary } from "@/i18n/dictionaries";
 import { isLocale, locales, type Locale } from "@/i18n/config";
+import { getSiteOrigin } from "@/lib/seo/site-origin";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -24,14 +25,42 @@ export function generateStaticParams() {
 
 export async function generateMetadata(props: LayoutProps<"/[lang]">): Promise<Metadata> {
   const { lang } = await props.params;
+  const base: Metadata = {
+    metadataBase: new URL(getSiteOrigin()),
+    title: {
+      default: "Hireflow",
+      template: "%s | Hireflow",
+    },
+    applicationName: "Hireflow",
+    creator: "Hireflow",
+    publisher: "Hireflow",
+    referrer: "strict-origin-when-cross-origin",
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
+  };
+
   if (!isLocale(lang)) {
-    return { title: "Hireflow" };
+    return base;
   }
 
   const dict = getDictionary(lang);
   return {
-    title: dict.common.appName,
-    description: dict.landing.subheading,
+    ...base,
+    title: {
+      default: dict.common.appName,
+      template: "%s | Hireflow",
+    },
+    description: dict.seo.appDescription,
+  };
+}
+
+export function generateViewport(): Viewport {
+  return {
+    themeColor: "#4338ca",
+    colorScheme: "light",
   };
 }
 
