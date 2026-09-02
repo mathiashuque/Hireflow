@@ -231,6 +231,144 @@ API directly with `backend/Hireflow.Api/Hireflow.Api.http` (VS Code's REST Clien
 extension or any compatible tool), which documents the manual CSRF-priming sequence
 step by step.
 
+## Operations
+
+### Health and readiness
+
+Three anonymous, read-only, bounded endpoints:
+
+- `GET /api/health/live` — process liveness only. Never touches PostgreSQL, so it
+  stays `200` through a transient database outage; a load balancer/orchestrator
+  should use this only to decide whether to restart the process, never to route
+  traffic.
+- `GET /api/health/ready` — readiness, including a PostgreSQL connectivity check
+  (a bounded `SELECT`-free `CanConnectAsync`, never migrations/schema/writes)
+  through the same connection string the app uses. `200` when reachable, `503`
+  when not.
+- `GET /api/health` — a compatibility alias for `/ready`, so an existing
+  caller/check pointed at the old path keeps working.
+
+Every response is the same small JSON shape and reveals no connection string,
+hostname, database name/user, or exception text — e.g.
+`{"status":"Healthy","checks":{"database":"Healthy"}}`. The database check's
+timeout is `Health:DatabaseTimeoutSeconds` (default `5`; must be a positive
+number — invalid values fail startup, see below).
+
+```bash
+curl http://localhost:8080/api/health/live
+curl http://localhost:8080/api/health/ready
+```
+
+### Structured logging and correlation
+
+Development logs stay the default human-readable console. Outside Development,
+logging switches to structured JSON (`ILoggingBuilder.AddJsonConsole`) so a log
+aggregator can parse fields without a third-party logging platform. Levels are
+configurable the normal ASP.NET Core way — `Logging__LogLevel__*` environment
+variables or `appsettings.{Environment}.json`.
+
+Every request gets one correlation ID, established before routing/auth so it
+covers every response including framework-owned ones (a cookie-auth `401`, an
+unmatched route). That ID becomes both the response's `X-Request-ID` header and
+the exact value in a problem response's `traceId` field, so a client-reported
+issue and server logs can always be tied together. A caller may supply their own
+`X-Request-ID`; it's honored only if it's a short, safe token (letters, digits,
+`.`, `_`, `-`, ≤128 characters) — anything else (oversized, containing control
+characters, etc.) is replaced with the server's own generated ID rather than
+trusted as-is. After authentication/routing, the log scope additionally carries
+the caller's `UserId` and the route's `WorkspaceId` when safely parseable, so
+per-request log lines don't need to repeat that context — a missing/malformed
+value is simply omitted, never a request failure.
+
+Important events already logged with safe structured IDs (never candidate PII,
+note content, passwords, tokens, or full overview payloads): authentication
+failures, workspace creation, invitations, member role changes, job status
+changes, candidate creation/stage movement, note creation, and unhandled
+exceptions (logged once, server-side, with correlation context — the client
+still only ever sees the safe `internal_error` problem response). EF Core's own
+command logging is set to `Warning` by default specifically because invitation
+acceptance embeds a bearer token in its route (`POST /api/invitations/{token}/accept`)
+— the framework's built-in hosting-diagnostics log scope carries that raw path,
+and EF's per-command `Information` logging would otherwise pull it into the
+log stream; keeping `Microsoft.AspNetCore`/`Microsoft.EntityFrameworkCore` at
+`Warning` (the shipped default) is what keeps it out.
+
+### Production configuration
+
+Production fails fast at startup, with a clear non-secret message, rather than
+silently running with a broken/insecure default:
+
+| Setting | Required in Production | Failure if missing/invalid |
+| --- | --- | --- |
+| `ConnectionStrings__Database` | Yes | Throws immediately — never falls back to local credentials |
+| `Cors__AllowedOrigins__0` (at least one) | Yes | Throws immediately — never allows a wildcard origin |
+| `WorkspaceInvitations__LifetimeDays` | No (defaults to `7`) | Startup fails if explicitly set to `0` or negative |
+| `Health__DatabaseTimeoutSeconds` | No (defaults to `5`) | Startup fails if explicitly set to `0` or negative |
+
+Development keeps its documented local PostgreSQL/CORS fallback
+(`appsettings.Development.json`); Production must supply real values through
+environment/platform secret configuration, never a committed file. Secrets live
+exclusively there — `.env.example`/`.env.local.example` contain placeholders
+only, and `.gitignore` excludes real `.env*` files.
+
+### Containers
+
+Both images build multi-stage, run as a non-root user (`$APP_UID` for the API,
+`node` for the frontend), and declare a `HEALTHCHECK` using `wget` (already
+present in both Alpine base images' busybox — no extra package installed): the
+API checks `/api/health/ready`, the frontend checks that its HTTP server
+responds. In Compose, the frontend now waits for the API's healthcheck
+(`depends_on: api: condition: service_healthy`), and the API still waits for a
+healthy local PostgreSQL the same way. Both services have a 10-second
+`stop_grace_period` for local development.
+
+```bash
+docker compose up -d --build
+docker compose ps                 # every service should report "healthy"
+docker compose stop postgres      # readiness should now report 503; liveness stays 200
+docker compose start postgres     # readiness recovers once PostgreSQL is reachable again
+docker compose down               # stops all three containers gracefully
+```
+
+### CI
+
+`.github/workflows/CI.yml` runs on pull requests targeting `develop` and `main`,
+on pushes to either branch, and on manual dispatch, with least-privilege
+permissions and per-ref concurrency cancellation. Three jobs, all with bounded
+timeouts:
+
+- **Backend** — restore/build/test (the test suite's disposable Testcontainers
+  PostgreSQL applies every migration and exercises the readiness health check),
+  then `dotnet ef migrations has-pending-model-changes` to fail the build if an
+  entity/mapping change wasn't captured in a migration.
+- **Frontend** — `npm ci`, lint, build.
+- **Docker build validation** — builds both the API and frontend production
+  images to prove they still build; never pushes an image and requires no
+  registry credentials.
+
+Nothing in CI contacts Neon or requires production credentials.
+
+### Deployment checklist (deployment-neutral)
+
+Hireflow isn't deployed yet; this is what's needed whenever that happens, matching
+`idea.md`'s expected architecture (Next.js on Vercel, the API on a Docker-compatible
+host of your choice, PostgreSQL on Neon) without endorsing or configuring a specific
+provider:
+
+1. Provision a Neon database and copy its **direct** (non-pooled) connection string
+   for running migrations, plus its pooled connection string for the running API.
+2. Apply migrations explicitly against that database (`dotnet ef database update`,
+   as above) as a release step — never automatically at API startup.
+3. Deploy the API image to a Docker-compatible host with `ASPNETCORE_ENVIRONMENT=Production`,
+   the Neon pooled connection string, and the deployed frontend's exact origin in
+   `Cors__AllowedOrigins__0`. Confirm the platform observes the container's
+   `HEALTHCHECK`/`/api/health/ready` for routing decisions.
+4. Deploy the frontend to Vercel (or an equivalent static/SSR host) with
+   `NEXT_PUBLIC_API_URL` pointed at the deployed API's public origin.
+5. Verify `/api/health/live` and `/api/health/ready` both return `200`, then run
+   the end-to-end dev flow (register, reload, log out/in) against the deployed
+   stack before treating it as ready for use.
+
 ## Workspaces
 
 A workspace is Hireflow's tenant: job openings, candidates, and hiring activity

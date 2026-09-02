@@ -15,6 +15,7 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    stop_grace_period: 10s
 
   frontend:
     build:
@@ -24,9 +25,11 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "3000:3000"
+    stop_grace_period: 10s
 
   postgres:
     image: postgres:17-alpine

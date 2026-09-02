@@ -20,4 +20,11 @@ WORKDIR /app
 COPY --from=build /app/publish .
 USER $APP_UID
 EXPOSE 8080
+
+# wget ships with the Alpine base image's busybox already, so no extra package is
+# installed just for this. Checks readiness (not liveness): a container that can't reach
+# PostgreSQL should stop receiving new traffic even though the process itself is fine.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/api/health/ready || exit 1
+
 ENTRYPOINT ["dotnet", "Hireflow.Api.dll"]

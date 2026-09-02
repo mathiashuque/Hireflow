@@ -3,6 +3,8 @@ using Hireflow.Application.Candidates;
 using Hireflow.Application.Jobs;
 using Hireflow.Application.Workspaces;
 using Hireflow.Infrastructure.Candidates;
+using Hireflow.Infrastructure.Configuration;
+using Hireflow.Infrastructure.Health;
 using Hireflow.Infrastructure.Identity;
 using Hireflow.Infrastructure.Jobs;
 using Hireflow.Infrastructure.Persistence;
@@ -11,6 +13,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Hireflow.Infrastructure;
 
@@ -65,7 +68,18 @@ public static class DependencyInjection
         services.AddScoped<ICandidateService, CandidateService>();
         services.AddScoped<ICandidateNoteService, CandidateNoteService>();
 
-        services.Configure<WorkspaceInvitationOptions>(configuration.GetSection(WorkspaceInvitationOptions.SectionName));
+        services.AddSingleton<IValidateOptions<WorkspaceInvitationOptions>, WorkspaceInvitationOptionsValidator>();
+        services.AddOptions<WorkspaceInvitationOptions>()
+            .Bind(configuration.GetSection(WorkspaceInvitationOptions.SectionName))
+            .ValidateOnStart();
+
+        services.AddSingleton<IValidateOptions<HireflowHealthOptions>, HireflowHealthOptionsValidator>();
+        services.AddOptions<HireflowHealthOptions>()
+            .Bind(configuration.GetSection(HireflowHealthOptions.SectionName))
+            .ValidateOnStart();
+
+        services.AddHealthChecks()
+            .AddCheck<PostgresHealthCheck>("database", tags: ["ready"]);
 
         return services;
     }

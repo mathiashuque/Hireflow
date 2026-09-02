@@ -21,4 +21,11 @@ COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 USER node
 EXPOSE 3000
+
+# wget ships with the Alpine base image's busybox already, so no extra package is
+# installed just for this. A bare "server responds" probe: the frontend has no
+# backend-dependent readiness state of its own to check.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1
+
 CMD ["node", "server.js"]
