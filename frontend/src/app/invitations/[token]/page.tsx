@@ -63,7 +63,7 @@ export default function InvitationAcceptPage(props: PageProps<"/invitations/[tok
 
   if (authStatus === "loading" || authStatus === "unauthenticated") {
     return (
-      <PublicShell maxWidth="md">
+      <PublicShell>
         <div className="flex flex-1 items-center justify-center py-16">
           <SkeletonBlock label="Loading your account…" className="w-full max-w-sm" />
         </div>
@@ -72,20 +72,22 @@ export default function InvitationAcceptPage(props: PageProps<"/invitations/[tok
   }
 
   return (
-    <PublicShell maxWidth="md">
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 py-16 text-center">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={state.status}
-            initial="hidden"
-            animate="show"
-            exit="exit"
-            variants={fadeIn}
-            className="flex w-full flex-col items-center"
-          >
-            <InvitationContent state={state} onRetry={retry} />
-          </motion.div>
-        </AnimatePresence>
+    <PublicShell>
+      <div className="flex flex-1 items-center justify-center py-16">
+        <div className="w-full max-w-md rounded-xl border border-border bg-surface p-8 text-center shadow-[var(--shadow-card)]">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={state.status}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              variants={fadeIn}
+              className="flex w-full flex-col items-center"
+            >
+              <InvitationContent state={state} onRetry={retry} />
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </PublicShell>
   );

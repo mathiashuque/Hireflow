@@ -91,14 +91,14 @@ export default function WorkspaceJobsPage(props: PageProps<"/workspaces/[workspa
 
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
-      <AppShell>
+      <AppShell maxWidth="xl">
         <SkeletonBlock label="Loading your account…" />
       </AppShell>
     );
   }
 
   return (
-    <AppShell>
+    <AppShell maxWidth="xl">
       <JobsContent
         state={state}
         filter={filter}

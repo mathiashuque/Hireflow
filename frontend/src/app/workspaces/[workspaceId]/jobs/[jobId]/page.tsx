@@ -20,6 +20,7 @@ import { JobDetailsForm } from "@/components/JobDetailsForm";
 import { AppShell } from "@/components/shell/AppShell";
 import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { Reveal } from "@/components/motion/Reveal";
@@ -97,7 +98,7 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
 
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
-      <AppShell>
+      <AppShell maxWidth="xl">
         <SkeletonBlock label="Loading your account…" />
       </AppShell>
     );
@@ -167,7 +168,7 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
   }
 
   return (
-    <AppShell>
+    <AppShell maxWidth="xl">
       <Breadcrumbs
         items={[
           { label: "Workspace", href: `/workspaces/${workspaceId}` },
@@ -247,36 +248,68 @@ function JobDetail({
   onStatusChange: (target: "Open" | "Closed") => void;
 }) {
   return (
-    <Reveal className="flex flex-col gap-8">
-      <AnimatedStatus id={conflictMessage}>
-        <StatusBanner tone="warning" role="alert">
-          {conflictMessage}
-        </StatusBanner>
-      </AnimatedStatus>
+    <Reveal className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-10">
+      <div className="flex flex-col gap-6">
+        <AnimatedStatus id={conflictMessage}>
+          <StatusBanner tone="warning" role="alert">
+            {conflictMessage}
+          </StatusBanner>
+        </AnimatedStatus>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <JobStatusBadge status={job.status} />
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-text-primary">{job.title}</h1>
-          <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
-            <div>
-              <dt className="inline font-medium">Created</dt> <dd className="inline">{new Date(job.createdAt).toLocaleString()}</dd>
+        </div>
+
+        <AnimatedStatus id={statusError}>
+          <StatusBanner tone="danger" role="alert">
+            {statusError}
+          </StatusBanner>
+        </AnimatedStatus>
+
+        {isEditing ? (
+          <JobDetailsForm
+            initialTitle={job.title}
+            initialDescription={job.description ?? ""}
+            submitLabel="Save changes"
+            submittingLabel="Saving…"
+            onCancel={onCancelEdit}
+            onSubmit={onSaveEdit}
+          />
+        ) : job.description ? (
+          <p className="max-w-2xl whitespace-pre-wrap text-sm text-text-secondary">{job.description}</p>
+        ) : (
+          <p className="text-sm text-text-muted">No description.</p>
+        )}
+
+        {!canManage ? <p className="text-xs text-text-muted">You have read-only access to this job.</p> : null}
+      </div>
+
+      <aside className="mt-6 flex flex-col gap-4 lg:mt-0">
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold text-text-primary">Details</h2>
+          <dl className="mt-3 flex flex-col gap-2 text-xs text-text-muted">
+            <div className="flex justify-between gap-2">
+              <dt className="font-medium">Created</dt>
+              <dd>{new Date(job.createdAt).toLocaleDateString()}</dd>
             </div>
-            <div>
-              <dt className="inline font-medium">Updated</dt> <dd className="inline">{new Date(job.updatedAt).toLocaleString()}</dd>
+            <div className="flex justify-between gap-2">
+              <dt className="font-medium">Updated</dt>
+              <dd>{new Date(job.updatedAt).toLocaleDateString()}</dd>
             </div>
             {job.closedAt ? (
-              <div>
-                <dt className="inline font-medium">Closed</dt> <dd className="inline">{new Date(job.closedAt).toLocaleString()}</dd>
+              <div className="flex justify-between gap-2">
+                <dt className="font-medium">Closed</dt>
+                <dd>{new Date(job.closedAt).toLocaleDateString()}</dd>
               </div>
             ) : null}
           </dl>
-        </div>
+        </Card>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2">
           <Link
             href={`/workspaces/${job.workspaceId}/jobs/${job.id}/candidates`}
-            className="rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="rounded-lg border border-border-strong px-3 py-1.5 text-center text-xs font-medium text-text-secondary transition hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             Candidates
           </Link>
@@ -289,30 +322,7 @@ function JobDetail({
             </>
           ) : null}
         </div>
-      </div>
-
-      <AnimatedStatus id={statusError}>
-        <StatusBanner tone="danger" role="alert">
-          {statusError}
-        </StatusBanner>
-      </AnimatedStatus>
-
-      {isEditing ? (
-        <JobDetailsForm
-          initialTitle={job.title}
-          initialDescription={job.description ?? ""}
-          submitLabel="Save changes"
-          submittingLabel="Saving…"
-          onCancel={onCancelEdit}
-          onSubmit={onSaveEdit}
-        />
-      ) : job.description ? (
-        <p className="max-w-2xl whitespace-pre-wrap text-sm text-text-secondary">{job.description}</p>
-      ) : (
-        <p className="text-sm text-text-muted">No description.</p>
-      )}
-
-      {!canManage ? <p className="text-xs text-text-muted">You have read-only access to this job.</p> : null}
+      </aside>
     </Reveal>
   );
 }

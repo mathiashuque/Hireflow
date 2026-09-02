@@ -100,14 +100,14 @@ export default function WorkspaceMembersPage(props: PageProps<"/workspaces/[work
 
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
-      <AppShell>
+      <AppShell maxWidth="xl">
         <SkeletonBlock label="Loading your account…" />
       </AppShell>
     );
   }
 
   return (
-    <AppShell>
+    <AppShell maxWidth="xl">
       <WorkspaceContent
         state={state}
         currentUserId={user.id}
@@ -183,7 +183,7 @@ function WorkspaceContent({
 
       <WorkspaceNav workspaceId={workspace.id} />
 
-      <div className="flex flex-col gap-10">
+      <div className={isOwner ? "grid gap-10 lg:grid-cols-2 lg:items-start" : "flex flex-col gap-8"}>
         <div>
           <h2 className="text-sm font-semibold text-text-primary">Members</h2>
           <div className="mt-3">

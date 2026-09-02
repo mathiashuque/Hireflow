@@ -121,7 +121,7 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
 
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
-      <AppShell>
+      <AppShell maxWidth="xl">
         <SkeletonBlock label="Loading your account…" />
       </AppShell>
     );
@@ -213,7 +213,7 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
     state.status === "ready" ? `/workspaces/${workspaceId}/jobs/${state.candidate.jobOpeningId}/candidates` : undefined;
 
   return (
-    <AppShell>
+    <AppShell maxWidth="xl">
       <Breadcrumbs
         items={[
           { label: "Workspace", href: `/workspaces/${workspaceId}` },
@@ -326,42 +326,46 @@ function CandidateDetail({
         ) : null}
       </div>
 
-      {canManage ? (
-        <div>
-          <h2 className="text-sm font-semibold text-text-primary">Move stage</h2>
-          <div className="mt-2">
-            <CandidateStageMoveControl currentStage={candidate.stage} labelPrefix="Move candidate to" onMove={onMoveStage} />
+      <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
+        <div className="flex flex-col gap-6">
+          {canManage ? (
+            <div>
+              <h2 className="text-sm font-semibold text-text-primary">Move stage</h2>
+              <div className="mt-2">
+                <CandidateStageMoveControl currentStage={candidate.stage} labelPrefix="Move candidate to" onMove={onMoveStage} />
+              </div>
+            </div>
+          ) : null}
+
+          {isEditing ? (
+            <CandidateDetailsForm
+              initialName={candidate.name}
+              initialEmail={candidate.email}
+              submitLabel="Save changes"
+              submittingLabel="Saving…"
+              onCancel={onCancelEdit}
+              onSubmit={onSaveEdit}
+            />
+          ) : null}
+
+          {!canManage ? <p className="text-xs text-text-muted">You have read-only access to this candidate.</p> : null}
+
+          <div>
+            <h2 className="text-sm font-semibold text-text-primary">Stage history</h2>
+            <div className="mt-2">
+              <CandidateStageHistoryTimeline history={history} />
+            </div>
           </div>
         </div>
-      ) : null}
 
-      {isEditing ? (
-        <CandidateDetailsForm
-          initialName={candidate.name}
-          initialEmail={candidate.email}
-          submitLabel="Save changes"
-          submittingLabel="Saving…"
-          onCancel={onCancelEdit}
-          onSubmit={onSaveEdit}
-        />
-      ) : null}
-
-      {!canManage ? <p className="text-xs text-text-muted">You have read-only access to this candidate.</p> : null}
-
-      <div>
-        <h2 className="text-sm font-semibold text-text-primary">Stage history</h2>
-        <div className="mt-2">
-          <CandidateStageHistoryTimeline history={history} />
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-sm font-semibold text-text-primary">Internal notes</h2>
-        <div className="mt-2">
-          <CandidateNoteComposer onSubmit={onAddNote} />
-        </div>
-        <div className="mt-4">
-          <CandidateNotesTimeline notes={notes} />
+        <div>
+          <h2 className="text-sm font-semibold text-text-primary">Internal notes</h2>
+          <div className="mt-2">
+            <CandidateNoteComposer onSubmit={onAddNote} />
+          </div>
+          <div className="mt-4">
+            <CandidateNotesTimeline notes={notes} />
+          </div>
         </div>
       </div>
     </Reveal>
