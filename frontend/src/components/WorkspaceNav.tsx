@@ -11,12 +11,16 @@ export function WorkspaceNav({ workspaceId }: WorkspaceNavProps) {
   const pathname = usePathname();
   const overviewHref = `/workspaces/${workspaceId}`;
   const jobsHref = `/workspaces/${workspaceId}/jobs`;
+  const membersHref = `/workspaces/${workspaceId}/members`;
   const isJobs = pathname?.startsWith(jobsHref) ?? false;
+  const isMembers = pathname?.startsWith(membersHref) ?? false;
+  const isOverview = !isJobs && !isMembers;
 
   return (
     <nav aria-label="Workspace" className="flex gap-1 border-b border-slate-200">
-      <Tab href={overviewHref} label="Overview" active={!isJobs} />
+      <Tab href={overviewHref} label="Overview" active={isOverview} />
       <Tab href={jobsHref} label="Jobs" active={isJobs} />
+      <Tab href={membersHref} label="Members" active={isMembers} />
     </nav>
   );
 }

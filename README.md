@@ -222,6 +222,8 @@ Endpoints (all require authentication):
 - `DELETE /api/workspaces/{workspaceId}/members/{userId}` — Owner only; removes
   a member (their Identity account is untouched). Same `409` last-Owner
   protection as above.
+- `GET /api/workspaces/{workspaceId}/overview` — any member; the recruiting
+  overview read model described below.
 
 `POST /api/workspaces` and the two member-management endpoints are state-changing
 and cookie-authenticated, so they require the same CSRF proof described above. A
@@ -426,6 +428,50 @@ note never touches `Candidate.Stage`, `Candidate.UpdatedAt`, or its `xmin`
 concurrency version, and never appends a stage-history row — notes and stage
 history are separate concepts recorded independently. Note content is never
 written to routine application logs or error responses.
+
+## Workspace recruiting overview
+
+`GET /api/workspaces/{workspaceId}/overview` powers `/workspaces/{workspaceId}`,
+the workspace's home page, and is available to any current Owner, Recruiter, or
+Interviewer. It is a read-only aggregation over existing job/candidate/history/
+note rows — there is no separate analytics table, event log, or background
+aggregation job; every call recomputes fresh, tenant-scoped results directly
+from the same rows the rest of the product reads and writes.
+
+**Metrics** — `jobCounts` (`Draft`/`Open`/`Closed`) and `candidateCounts`
+(`Applied`/`Screening`/`Interview`/`Offer`/`Rejected`, plus `totalCandidates`)
+always cover every predefined status/stage and exactly match the requested
+workspace's rows; an empty workspace returns zeroed counts, never an error or
+missing keys.
+
+**Workload** — one row per non-Closed (Draft/Open) job with its total candidate
+count and the same five-stage breakdown, ordered Open before Draft, then most
+recently updated, then stable job ID. Closed jobs are excluded from workload
+but remain in `jobCounts`; this slice does not paginate the workload list.
+
+**Recent activity** — a bounded, best-effort feed, not a complete audit log. It
+only reports facts the schema records directly, each as one of four kinds:
+`JobCreated`, `CandidateAdded`, `CandidateStageChanged` (with previous/new
+stage), and `CandidateNoteAdded`. Job status changes, candidate profile edits,
+member/invitation administration, and logins are not tracked anywhere and are
+never inferred or fabricated here. Ordering is newest first, tie-broken by
+activity kind then source ID for a fully deterministic result. `activityLimit`
+defaults to 20 and accepts 1–50; an out-of-range value is a `400` validation
+problem. A note-added activity never includes note content or a preview, and no
+activity includes candidate email — only candidate name, which is treated as
+member-visible PII, not exposed to nonmembers, and never logged.
+
+Every aggregate, workload row, and activity is queried with the requested
+workspace ID as part of the query itself (never fetched globally and filtered
+afterward), so cross-tenant jobs, candidates, history, or notes can never affect
+the response. Nonmembers and former members get the same non-enumerating `404`
+as a nonexistent workspace; anonymous callers get `401`.
+
+On the frontend, `/workspaces/{workspaceId}` is the Overview page described
+above. Member/invitation management (invite, role changes, removal, one-time
+invitation links) moved to `/workspaces/{workspaceId}/members` with no
+behavioral change. `WorkspaceNav` exposes Overview, Jobs, and Members with an
+accessible current-page indication available to every role.
 
 ## License
 
