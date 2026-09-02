@@ -4,10 +4,13 @@ import { motion } from "motion/react";
 import type { CandidateNote } from "@/lib/api/candidates";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 export function CandidateNotesTimeline({ notes }: { notes: CandidateNote[] }) {
+  const { dict, formatDateTime } = useI18n();
+
   if (notes.length === 0) {
-    return <EmptyState title="No internal notes yet" />;
+    return <EmptyState title={dict.candidates.noNotes} />;
   }
 
   return (
@@ -21,7 +24,7 @@ export function CandidateNotesTimeline({ notes }: { notes: CandidateNote[] }) {
         >
           <p className="whitespace-pre-wrap text-sm text-text-primary">{note.content}</p>
           <p className="mt-2 text-xs text-text-muted">
-            {note.authorDisplayName ?? "A former member"} · {new Date(note.createdAt).toLocaleString()}
+            {note.authorDisplayName ?? dict.common.formerMember} · {formatDateTime(note.createdAt)}
           </p>
         </motion.li>
       ))}

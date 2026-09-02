@@ -24,6 +24,8 @@ import { Card } from "@/components/ui/Card";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { Reveal } from "@/components/motion/Reveal";
+import { useI18n } from "@/i18n/LocaleProvider";
+import type { Dictionary } from "@/i18n/dictionaries";
 
 type PageState =
   | { status: "loading" }
@@ -32,10 +34,11 @@ type PageState =
   | { status: "error" }
   | { status: "ready"; job: JobOpening; canManage: boolean };
 
-export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId]/jobs/[jobId]">) {
+export default function JobDetailPage(props: PageProps<"/[lang]/workspaces/[workspaceId]/jobs/[jobId]">) {
   const { workspaceId, jobId } = use(props.params);
   const { status: authStatus, user } = useAuth();
   const router = useRouter();
+  const { dict, href, formatDate } = useI18n();
   const [state, setState] = useState<PageState>({ status: "loading" });
   const [isEditing, setIsEditing] = useState(false);
   const [conflictMessage, setConflictMessage] = useState<string | null>(null);
@@ -75,9 +78,9 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
-      router.replace("/login");
+      router.replace(href("/login"));
     }
-  }, [authStatus, router]);
+  }, [authStatus, router, href]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") {
@@ -99,7 +102,7 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
       <AppShell maxWidth="xl">
-        <SkeletonBlock label="Loading your account…" />
+        <SkeletonBlock label={dict.nav.loadingAccount} />
       </AppShell>
     );
   }
@@ -120,7 +123,7 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
       setIsEditing(false);
     } catch (error) {
       if (isConcurrencyConflict(error)) {
-        setConflictMessage("This job was changed by someone else. The latest version is now shown below — please redo your edit.");
+        setConflictMessage(dict.jobs.conflictEdit);
         refresh();
         return;
       }
@@ -128,9 +131,9 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
         throw error;
       }
       if (error instanceof ApiError) {
-        throw new Error(error.fieldErrors.Title?.[0] ?? error.message);
+        throw new Error(error.fieldErrors.Title?.[0] ?? dict.errors.validation_error);
       }
-      throw new Error("Something went wrong. Please try again.");
+      throw new Error(dict.common.genericError);
     }
   }
 
@@ -139,7 +142,7 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
       return;
     }
 
-    if (target === "Closed" && !window.confirm("Close this job opening? You can reopen it later.")) {
+    if (target === "Closed" && !window.confirm(dict.jobs.confirmClose)) {
       return;
     }
 
@@ -151,16 +154,16 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
       setState({ status: "ready", job: updated, canManage: state.canManage });
     } catch (error) {
       if (isConcurrencyConflict(error)) {
-        setConflictMessage("This job was changed by someone else. The latest version is now shown below.");
+        setConflictMessage(dict.jobs.conflictStatus);
         refresh();
       } else if (error instanceof ApiError && isInvalidTransitionConflict(error)) {
-        setStatusError(error.message);
+        setStatusError(dict.errors.invalid_job_transition);
       } else if (error instanceof ApiUnavailableError) {
-        setStatusError(error.message);
+        setStatusError(dict.common.apiUnavailable);
       } else if (error instanceof ApiError) {
-        setStatusError(error.message);
+        setStatusError(dict.errors.generic);
       } else {
-        setStatusError("Something went wrong. Please try again.");
+        setStatusError(dict.common.genericError);
       }
     } finally {
       setIsChangingStatus(false);
@@ -171,23 +174,21 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
     <AppShell maxWidth="xl">
       <Breadcrumbs
         items={[
-          { label: "Workspace", href: `/workspaces/${workspaceId}` },
-          { label: "Jobs", href: `/workspaces/${workspaceId}/jobs` },
-          { label: state.status === "ready" ? state.job.title : "Job" },
+          { label: dict.nav.workspaceOverview, href: href(`/workspaces/${workspaceId}`) },
+          { label: dict.nav.workspaceJobs, href: href(`/workspaces/${workspaceId}/jobs`) },
+          { label: state.status === "ready" ? state.job.title : dict.jobs.newJob },
         ]}
       />
 
       <div className="mt-6">
-        {state.status === "loading" && <SkeletonBlock label="Loading job…" />}
+        {state.status === "loading" && <SkeletonBlock label={dict.jobs.loadingJob} />}
 
         {state.status === "not-found" && (
           <div className="max-w-md">
-            <h1 className="text-xl font-semibold text-text-primary">Job unavailable</h1>
-            <p className="mt-2 text-sm text-text-secondary">
-              This job doesn&apos;t exist, or you don&apos;t have access to it.
-            </p>
-            <Link href={`/workspaces/${workspaceId}/jobs`} className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
-              Back to jobs
+            <h1 className="text-xl font-semibold text-text-primary">{dict.jobs.unavailableTitle}</h1>
+            <p className="mt-2 text-sm text-text-secondary">{dict.jobs.unavailableDescription}</p>
+            <Link href={href(`/workspaces/${workspaceId}/jobs`)} className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
+              {dict.jobs.backToJobs}
             </Link>
           </div>
         )}
@@ -195,12 +196,10 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
         {(state.status === "unavailable" || state.status === "error") && (
           <div className="flex max-w-md flex-col items-start gap-3">
             <p className="text-sm text-text-secondary">
-              {state.status === "unavailable"
-                ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
-                : "Something went wrong loading this job."}
+              {state.status === "unavailable" ? dict.common.apiUnavailable : dict.jobs.loadFailedSingle}
             </p>
             <Button variant="primary" size="sm" onClick={retry}>
-              Try again
+              {dict.common.tryAgain}
             </Button>
           </div>
         )}
@@ -217,6 +216,9 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
             onCancelEdit={() => setIsEditing(false)}
             onSaveEdit={handleSaveEdit}
             onStatusChange={handleStatusChange}
+            dict={dict}
+            href={href}
+            formatDate={formatDate}
           />
         )}
       </div>
@@ -235,6 +237,9 @@ function JobDetail({
   onCancelEdit,
   onSaveEdit,
   onStatusChange,
+  dict,
+  href,
+  formatDate,
 }: {
   job: JobOpening;
   canManage: boolean;
@@ -246,6 +251,9 @@ function JobDetail({
   onCancelEdit: () => void;
   onSaveEdit: (input: { title: string; description: string }) => Promise<void>;
   onStatusChange: (target: "Open" | "Closed") => void;
+  dict: Dictionary;
+  href: (path: string) => string;
+  formatDate: (iso: string) => string;
 }) {
   return (
     <Reveal className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-10">
@@ -271,36 +279,36 @@ function JobDetail({
           <JobDetailsForm
             initialTitle={job.title}
             initialDescription={job.description ?? ""}
-            submitLabel="Save changes"
-            submittingLabel="Saving…"
+            submitLabel={dict.jobs.saveChanges}
+            submittingLabel={dict.jobs.savingChanges}
             onCancel={onCancelEdit}
             onSubmit={onSaveEdit}
           />
         ) : job.description ? (
           <p className="max-w-2xl whitespace-pre-wrap text-sm text-text-secondary">{job.description}</p>
         ) : (
-          <p className="text-sm text-text-muted">No description.</p>
+          <p className="text-sm text-text-muted">{dict.jobs.noDescription}</p>
         )}
 
-        {!canManage ? <p className="text-xs text-text-muted">You have read-only access to this job.</p> : null}
+        {!canManage ? <p className="text-xs text-text-muted">{dict.jobs.readOnlyNotice}</p> : null}
       </div>
 
       <aside className="mt-6 flex flex-col gap-4 lg:mt-0">
         <Card className="p-4">
-          <h2 className="text-sm font-semibold text-text-primary">Details</h2>
+          <h2 className="text-sm font-semibold text-text-primary">{dict.jobs.detailsHeading}</h2>
           <dl className="mt-3 flex flex-col gap-2 text-xs text-text-muted">
             <div className="flex justify-between gap-2">
-              <dt className="font-medium">Created</dt>
-              <dd>{new Date(job.createdAt).toLocaleDateString()}</dd>
+              <dt className="font-medium">{dict.jobs.created}</dt>
+              <dd>{formatDate(job.createdAt)}</dd>
             </div>
             <div className="flex justify-between gap-2">
-              <dt className="font-medium">Updated</dt>
-              <dd>{new Date(job.updatedAt).toLocaleDateString()}</dd>
+              <dt className="font-medium">{dict.jobs.updated}</dt>
+              <dd>{formatDate(job.updatedAt)}</dd>
             </div>
             {job.closedAt ? (
               <div className="flex justify-between gap-2">
-                <dt className="font-medium">Closed</dt>
-                <dd>{new Date(job.closedAt).toLocaleDateString()}</dd>
+                <dt className="font-medium">{dict.jobs.closed}</dt>
+                <dd>{formatDate(job.closedAt)}</dd>
               </div>
             ) : null}
           </dl>
@@ -308,17 +316,17 @@ function JobDetail({
 
         <div className="flex flex-col gap-2">
           <Link
-            href={`/workspaces/${job.workspaceId}/jobs/${job.id}/candidates`}
+            href={href(`/workspaces/${job.workspaceId}/jobs/${job.id}/candidates`)}
             className="rounded-lg border border-border-strong px-3 py-1.5 text-center text-xs font-medium text-text-secondary transition hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
-            Candidates
+            {dict.jobs.candidatesLink}
           </Link>
           {canManage && !isEditing ? (
             <>
               <Button size="sm" onClick={onEdit}>
-                Edit
+                {dict.jobs.editJob}
               </Button>
-              <StatusActions status={job.status} disabled={isChangingStatus} onChange={onStatusChange} />
+              <StatusActions status={job.status} disabled={isChangingStatus} onChange={onStatusChange} dict={dict} />
             </>
           ) : null}
         </div>
@@ -331,15 +339,17 @@ function StatusActions({
   status,
   disabled,
   onChange,
+  dict,
 }: {
   status: JobStatus;
   disabled: boolean;
   onChange: (target: "Open" | "Closed") => void;
+  dict: Dictionary;
 }) {
   if (status === "Draft") {
     return (
       <Button variant="primary" size="sm" disabled={disabled} onClick={() => onChange("Open")}>
-        Open
+        {dict.jobs.openAction}
       </Button>
     );
   }
@@ -347,14 +357,14 @@ function StatusActions({
   if (status === "Open") {
     return (
       <Button variant="danger" size="sm" disabled={disabled} onClick={() => onChange("Closed")}>
-        Close
+        {dict.jobs.closeAction}
       </Button>
     );
   }
 
   return (
     <Button size="sm" disabled={disabled} onClick={() => onChange("Open")}>
-      Reopen
+      {dict.jobs.reopenAction}
     </Button>
   );
 }

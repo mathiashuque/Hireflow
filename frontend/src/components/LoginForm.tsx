@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/Button";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 export function LoginForm() {
   const router = useRouter();
   const { login } = useAuth();
+  const { dict, href } = useI18n();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,14 +27,16 @@ export function LoginForm() {
 
     try {
       await login({ email, password });
-      router.push("/dashboard");
+      router.push(href("/dashboard"));
     } catch (error) {
       if (error instanceof ApiUnavailableError) {
-        setFormError(error.message);
+        setFormError(dict.common.apiUnavailable);
       } else if (error instanceof ApiError) {
-        setFormError(error.message);
+        // Login failures never distinguish "wrong email" from "wrong password" (avoids
+        // account enumeration) and never render the backend's raw English message.
+        setFormError(dict.auth.invalidCredentials);
       } else {
-        setFormError("Something went wrong. Please try again.");
+        setFormError(dict.common.genericError);
       }
     } finally {
       setIsSubmitting(false);
@@ -49,7 +53,7 @@ export function LoginForm() {
 
       <FormField
         id="email"
-        label="Email"
+        label={dict.auth.fieldEmail}
         type="email"
         value={email}
         onChange={setEmail}
@@ -58,7 +62,7 @@ export function LoginForm() {
       />
       <FormField
         id="password"
-        label="Password"
+        label={dict.auth.fieldPassword}
         type="password"
         value={password}
         onChange={setPassword}
@@ -67,13 +71,13 @@ export function LoginForm() {
       />
 
       <Button type="submit" variant="primary" disabled={isSubmitting} className="mt-2">
-        {isSubmitting ? "Logging in…" : "Log in"}
+        {isSubmitting ? dict.auth.loginPending : dict.auth.loginCta}
       </Button>
 
       <p className="text-sm text-text-secondary">
-        Don&apos;t have an account?{" "}
-        <Link href="/register" className="font-medium text-brand hover:underline">
-          Sign up
+        {dict.auth.loginNoAccount}{" "}
+        <Link href={href("/register")} className="font-medium text-brand hover:underline">
+          {dict.auth.signUpLink}
         </Link>
       </p>
     </form>

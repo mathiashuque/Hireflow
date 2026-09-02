@@ -4,6 +4,7 @@ import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { enterTransition, quickTransition } from "@/lib/motion";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -24,6 +25,7 @@ type DialogProps = {
  * (respects the app-wide `reducedMotion="user"` configuration automatically).
  */
 export function Dialog({ open, onClose, title, description, children, preventClose = false }: DialogProps) {
+  const { dict } = useI18n();
   const titleId = useId();
   const descriptionId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -150,7 +152,7 @@ export function Dialog({ open, onClose, title, description, children, preventClo
                 type="button"
                 onClick={onClose}
                 disabled={preventClose}
-                aria-label="Close dialog"
+                aria-label={dict.a11y.closeDialog}
                 className="shrink-0 rounded-full p-1.5 text-text-muted transition hover:bg-surface-muted hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">

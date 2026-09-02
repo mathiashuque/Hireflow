@@ -1,17 +1,23 @@
-import type { CandidateStageCounts } from "@/lib/api/overview";
+"use client";
 
-const STAGE_META: {
+import type { CandidateStageCounts } from "@/lib/api/overview";
+import { useI18n } from "@/i18n/LocaleProvider";
+import type { Dictionary } from "@/i18n/dictionaries";
+
+function stageMeta(dict: Dictionary): {
   key: keyof CandidateStageCounts;
   label: string;
   barClass: string;
   dotClass: string;
-}[] = [
-  { key: "applied", label: "Applied", barClass: "bg-slate-300", dotClass: "bg-slate-400" },
-  { key: "screening", label: "Screening", barClass: "bg-sky-400", dotClass: "bg-sky-500" },
-  { key: "interview", label: "Interview", barClass: "bg-indigo-400", dotClass: "bg-indigo-500" },
-  { key: "offer", label: "Offer", barClass: "bg-emerald-400", dotClass: "bg-emerald-500" },
-  { key: "rejected", label: "Rejected", barClass: "bg-red-300", dotClass: "bg-red-400" },
-];
+}[] {
+  return [
+    { key: "applied", label: dict.statuses.candidateStage.Applied, barClass: "bg-slate-300", dotClass: "bg-slate-400" },
+    { key: "screening", label: dict.statuses.candidateStage.Screening, barClass: "bg-sky-400", dotClass: "bg-sky-500" },
+    { key: "interview", label: dict.statuses.candidateStage.Interview, barClass: "bg-indigo-400", dotClass: "bg-indigo-500" },
+    { key: "offer", label: dict.statuses.candidateStage.Offer, barClass: "bg-emerald-400", dotClass: "bg-emerald-500" },
+    { key: "rejected", label: dict.statuses.candidateStage.Rejected, barClass: "bg-red-300", dotClass: "bg-red-400" },
+  ];
+}
 
 type CandidatePipelineBarProps = {
   total: number;
@@ -26,6 +32,8 @@ type CandidatePipelineBarProps = {
  * Guards the zero-total case explicitly rather than producing NaN/misleading widths.
  */
 export function CandidatePipelineBar({ total, counts, size = "md" }: CandidatePipelineBarProps) {
+  const { dict } = useI18n();
+  const meta = stageMeta(dict);
   const barHeight = size === "md" ? "h-2.5" : "h-1.5";
   const legendTextSize = size === "md" ? "text-xs" : "text-[11px]";
   const legendGap = size === "md" ? "gap-x-4 gap-y-1.5" : "gap-x-3 gap-y-1";
@@ -34,27 +42,27 @@ export function CandidatePipelineBar({ total, counts, size = "md" }: CandidatePi
     <div>
       <div aria-hidden="true" className={`flex w-full overflow-hidden rounded-full bg-surface-muted ${barHeight}`}>
         {total > 0
-          ? STAGE_META.map((meta) => {
-              const value = counts[meta.key];
+          ? meta.map((item) => {
+              const value = counts[item.key];
               if (value <= 0) {
                 return null;
               }
               const width = (value / total) * 100;
-              return <div key={meta.key} className={meta.barClass} style={{ width: `${width}%` }} />;
+              return <div key={item.key} className={item.barClass} style={{ width: `${width}%` }} />;
             })
           : null}
       </div>
 
       {size === "md" && total === 0 ? (
-        <p className="mt-2 text-xs text-text-muted">No candidates in the pipeline yet.</p>
+        <p className="mt-2 text-xs text-text-muted">{dict.workspaces.noCandidatesInPipeline}</p>
       ) : null}
 
       <ul className={`mt-2 flex flex-wrap ${legendGap} ${legendTextSize} text-text-secondary`}>
-        {STAGE_META.map((meta) => (
-          <li key={meta.key} className="flex items-center gap-1.5">
-            <span aria-hidden="true" className={`h-2 w-2 rounded-full ${meta.dotClass}`} />
+        {meta.map((item) => (
+          <li key={item.key} className="flex items-center gap-1.5">
+            <span aria-hidden="true" className={`h-2 w-2 rounded-full ${item.dotClass}`} />
             <span>
-              {meta.label}: <span className="font-medium text-text-primary">{counts[meta.key]}</span>
+              {item.label}: <span className="font-medium text-text-primary">{counts[item.key]}</span>
             </span>
           </li>
         ))}

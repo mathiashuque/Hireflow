@@ -5,22 +5,24 @@ import { motion } from "motion/react";
 import type { JobWorkload } from "@/lib/api/overview";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
 import { CandidatePipelineBar } from "@/components/CandidatePipelineBar";
-import { formatRelativeTime } from "@/lib/relativeTime";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 export function JobWorkloadList({ workspaceId, workload }: { workspaceId: string; workload: JobWorkload[] }) {
+  const { dict, href, formatRelativeTime } = useI18n();
+
   if (workload.length === 0) {
     return (
       <EmptyState
-        title="No active jobs yet"
-        description="Job openings you're a member of will appear here with their candidate workload."
+        title={dict.workspaces.noActiveJobsTitle}
+        description={dict.workspaces.noActiveJobsDescription}
         action={
           <Link
-            href={`/workspaces/${workspaceId}/jobs`}
+            href={href(`/workspaces/${workspaceId}/jobs`)}
             className="text-sm font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
-            View jobs
+            {dict.workspaces.viewJobs}
           </Link>
         }
       />
@@ -39,14 +41,14 @@ export function JobWorkloadList({ workspaceId, workload }: { workspaceId: string
             <div className="flex flex-wrap items-center gap-2">
               <JobStatusBadge status={job.status} />
               <Link
-                href={`/workspaces/${workspaceId}/jobs/${job.jobId}/candidates`}
+                href={href(`/workspaces/${workspaceId}/jobs/${job.jobId}/candidates`)}
                 className="break-words text-sm font-medium text-text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
                 {job.title}
               </Link>
             </div>
             <p className="mt-1 text-xs text-text-muted">
-              Updated {formatRelativeTime(job.updatedAt)} · {job.totalCandidates} candidate{job.totalCandidates === 1 ? "" : "s"}
+              {dict.workspaces.updated(formatRelativeTime(job.updatedAt))} · {dict.workspaces.candidateCount(job.totalCandidates)}
             </p>
           </div>
 

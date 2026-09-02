@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/Button";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 export function RegisterForm() {
   const router = useRouter();
   const { register } = useAuth();
+  const { dict, href } = useI18n();
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -28,15 +30,15 @@ export function RegisterForm() {
 
     try {
       await register({ displayName, email, password });
-      router.push("/dashboard");
+      router.push(href("/dashboard"));
     } catch (error) {
       if (error instanceof ApiUnavailableError) {
-        setFormError(error.message);
+        setFormError(dict.common.apiUnavailable);
       } else if (error instanceof ApiError) {
         setFieldErrors(error.fieldErrors);
-        setFormError(Object.keys(error.fieldErrors).length === 0 ? error.message : null);
+        setFormError(Object.keys(error.fieldErrors).length === 0 ? dict.errors.validation_error : null);
       } else {
-        setFormError("Something went wrong. Please try again.");
+        setFormError(dict.common.genericError);
       }
     } finally {
       setIsSubmitting(false);
@@ -53,7 +55,7 @@ export function RegisterForm() {
 
       <FormField
         id="displayName"
-        label="Display name"
+        label={dict.auth.fieldDisplayName}
         type="text"
         value={displayName}
         onChange={setDisplayName}
@@ -63,7 +65,7 @@ export function RegisterForm() {
       />
       <FormField
         id="email"
-        label="Email"
+        label={dict.auth.fieldEmail}
         type="email"
         value={email}
         onChange={setEmail}
@@ -73,7 +75,7 @@ export function RegisterForm() {
       />
       <FormField
         id="password"
-        label="Password"
+        label={dict.auth.fieldPassword}
         type="password"
         value={password}
         onChange={setPassword}
@@ -83,13 +85,13 @@ export function RegisterForm() {
       />
 
       <Button type="submit" variant="primary" disabled={isSubmitting} className="mt-2">
-        {isSubmitting ? "Creating account…" : "Create account"}
+        {isSubmitting ? dict.auth.registerPending : dict.auth.registerCta}
       </Button>
 
       <p className="text-sm text-text-secondary">
-        Already have an account?{" "}
-        <Link href="/login" className="font-medium text-brand hover:underline">
-          Log in
+        {dict.auth.registerHasAccount}{" "}
+        <Link href={href("/login")} className="font-medium text-brand hover:underline">
+          {dict.auth.logInLink}
         </Link>
       </p>
     </form>

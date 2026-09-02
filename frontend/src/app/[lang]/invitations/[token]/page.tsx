@@ -11,6 +11,8 @@ import { PublicShell } from "@/components/shell/PublicShell";
 import { Button } from "@/components/ui/Button";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { fadeIn } from "@/lib/motion";
+import { useI18n } from "@/i18n/LocaleProvider";
+import type { Dictionary } from "@/i18n/dictionaries";
 
 type AcceptState =
   | { status: "accepting" }
@@ -18,10 +20,11 @@ type AcceptState =
   | { status: "invalid" }
   | { status: "accepted"; workspaceId: string };
 
-export default function InvitationAcceptPage(props: PageProps<"/invitations/[token]">) {
+export default function InvitationAcceptPage(props: PageProps<"/[lang]/invitations/[token]">) {
   const { token } = use(props.params);
   const { status: authStatus } = useAuth();
   const router = useRouter();
+  const { dict, href } = useI18n();
   const [state, setState] = useState<AcceptState>({ status: "accepting" });
 
   const accept = useCallback(async (): Promise<AcceptState> => {
@@ -40,9 +43,9 @@ export default function InvitationAcceptPage(props: PageProps<"/invitations/[tok
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
-      router.replace("/login");
+      router.replace(href("/login"));
     }
-  }, [authStatus, router]);
+  }, [authStatus, router, href]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") {
@@ -65,7 +68,7 @@ export default function InvitationAcceptPage(props: PageProps<"/invitations/[tok
     return (
       <PublicShell>
         <div className="flex flex-1 items-center justify-center py-16">
-          <SkeletonBlock label="Loading your account…" className="w-full max-w-sm" />
+          <SkeletonBlock label={dict.nav.loadingAccount} className="w-full max-w-sm" />
         </div>
       </PublicShell>
     );
@@ -84,7 +87,7 @@ export default function InvitationAcceptPage(props: PageProps<"/invitations/[tok
               variants={fadeIn}
               className="flex w-full flex-col items-center"
             >
-              <InvitationContent state={state} onRetry={retry} />
+              <InvitationContent state={state} onRetry={retry} dict={dict} dashboardHref={href("/dashboard")} />
             </motion.div>
           </AnimatePresence>
         </div>
@@ -93,19 +96,27 @@ export default function InvitationAcceptPage(props: PageProps<"/invitations/[tok
   );
 }
 
-function InvitationContent({ state, onRetry }: { state: AcceptState; onRetry: () => void }) {
+function InvitationContent({
+  state,
+  onRetry,
+  dict,
+  dashboardHref,
+}: {
+  state: AcceptState;
+  onRetry: () => void;
+  dict: Dictionary;
+  dashboardHref: string;
+}) {
   if (state.status === "accepting") {
-    return <SkeletonBlock label="Accepting your invitation…" className="w-full max-w-sm" />;
+    return <SkeletonBlock label={dict.invitations.acceptingTitle} className="w-full max-w-sm" />;
   }
 
   if (state.status === "unavailable") {
     return (
       <div className="flex max-w-sm flex-col items-center gap-3">
-        <p className="text-sm text-text-secondary">
-          Hireflow can&apos;t reach the API right now. Check that the backend is running and try again.
-        </p>
+        <p className="text-sm text-text-secondary">{dict.common.apiUnavailable}</p>
         <Button variant="primary" onClick={onRetry}>
-          Try again
+          {dict.common.tryAgain}
         </Button>
       </div>
     );
@@ -114,13 +125,10 @@ function InvitationContent({ state, onRetry }: { state: AcceptState; onRetry: ()
   if (state.status === "invalid") {
     return (
       <div className="max-w-sm">
-        <h1 className="text-xl font-semibold text-text-primary">This invitation isn&apos;t available</h1>
-        <p className="mt-2 text-sm text-text-secondary">
-          The link may be invalid, expired, already used, or meant for a different account. Ask
-          whoever invited you to send a new one if needed.
-        </p>
-        <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
-          Go to your dashboard
+        <h1 className="text-xl font-semibold text-text-primary">{dict.invitations.invalidTitle}</h1>
+        <p className="mt-2 text-sm text-text-secondary">{dict.invitations.invalidDescription}</p>
+        <Link href={dashboardHref} className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
+          {dict.invitations.backToDashboard}
         </Link>
       </div>
     );
@@ -128,14 +136,21 @@ function InvitationContent({ state, onRetry }: { state: AcceptState; onRetry: ()
 
   return (
     <div className="max-w-sm">
-      <h1 className="text-xl font-semibold text-text-primary">You&apos;re in</h1>
-      <p className="mt-2 text-sm text-text-secondary">You&apos;ve joined the workspace.</p>
-      <Link
-        href={`/workspaces/${state.workspaceId}`}
-        className="mt-4 inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-      >
-        Go to the workspace
-      </Link>
+      <h1 className="text-xl font-semibold text-text-primary">{dict.invitations.acceptedTitle}</h1>
+      <p className="mt-2 text-sm text-text-secondary">{dict.invitations.acceptedDescription}</p>
+      <WorkspaceLink workspaceId={state.workspaceId} label={dict.invitations.goToWorkspace} />
     </div>
+  );
+}
+
+function WorkspaceLink({ workspaceId, label }: { workspaceId: string; label: string }) {
+  const { href } = useI18n();
+  return (
+    <Link
+      href={href(`/workspaces/${workspaceId}`)}
+      className="mt-4 inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+    >
+      {label}
+    </Link>
   );
 }

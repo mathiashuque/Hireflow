@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 export type Crumb = {
   label: string;
@@ -8,14 +11,17 @@ export type Crumb = {
 /**
  * Compact route hierarchy. The final crumb is always the current page (no link).
  * Omit a crumb entirely rather than linking to a route whose identifier isn't known yet.
+ * `href` values passed in must already be locale-prefixed (build them with `useI18n().href`).
  */
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
+  const { dict } = useI18n();
+
   if (items.length === 0) {
     return null;
   }
 
   return (
-    <nav aria-label="Breadcrumb" className="overflow-x-auto">
+    <nav aria-label={dict.nav.breadcrumbLabel} className="overflow-x-auto">
       <ol className="flex min-w-max items-center gap-1.5 text-sm text-text-muted">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;

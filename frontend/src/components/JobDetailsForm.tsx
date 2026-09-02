@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 type JobDetailsFormProps = {
   initialTitle?: string;
@@ -21,6 +22,7 @@ export function JobDetailsForm({
   onSubmit,
   onCancel,
 }: JobDetailsFormProps) {
+  const { dict } = useI18n();
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function JobDetailsForm({
     try {
       await onSubmit({ title, description });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      const message = error instanceof Error ? error.message : dict.common.genericError;
       setFormError(message);
     } finally {
       setIsSubmitting(false);
@@ -53,7 +55,7 @@ export function JobDetailsForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="jobTitle" className="text-sm font-medium text-text-primary">
-          Title
+          {dict.jobs.fieldTitle}
         </label>
         <input
           id="jobTitle"
@@ -74,7 +76,7 @@ export function JobDetailsForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="jobDescription" className="text-sm font-medium text-text-primary">
-          Description <span className="font-normal text-text-muted">(optional)</span>
+          {dict.jobs.fieldDescription} <span className="font-normal text-text-muted">({dict.common.optional})</span>
         </label>
         <textarea
           id="jobDescription"
@@ -92,7 +94,7 @@ export function JobDetailsForm({
         </Button>
         {onCancel ? (
           <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
+            {dict.common.cancel}
           </Button>
         ) : null}
       </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { WorkspaceCreateForm } from "@/components/WorkspaceCreateForm";
 import type { WorkspaceDetail } from "@/lib/api/workspaces";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 type WorkspaceCreateModalProps = {
   open: boolean;
@@ -13,14 +14,15 @@ type WorkspaceCreateModalProps = {
 
 /** Wraps the existing workspace-creation form/API/error behavior in an accessible dialog. */
 export function WorkspaceCreateModal({ open, onClose, onCreated }: WorkspaceCreateModalProps) {
+  const { dict } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      title="Create a workspace"
-      description="A workspace is where your team's job openings, candidates, and hiring activity live."
+      title={dict.dashboard.createWorkspaceModalTitle}
+      description={dict.dashboard.createWorkspaceModalDescription}
       preventClose={isSubmitting}
     >
       <WorkspaceCreateForm onCreated={onCreated} onSubmittingChange={setIsSubmitting} />

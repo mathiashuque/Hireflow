@@ -7,6 +7,9 @@ import { changeMemberRole, removeMember, type WorkspaceMember, type WorkspaceRol
 import { Button } from "@/components/ui/Button";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { staggerContainer, staggerItem } from "@/lib/motion";
+import { useI18n } from "@/i18n/LocaleProvider";
+import { roleLabel } from "@/i18n/enumLabels";
+import type { Dictionary } from "@/i18n/dictionaries";
 
 type MembersListProps = {
   workspaceId: string;
@@ -19,6 +22,7 @@ type MembersListProps = {
 const ROLES: WorkspaceRole[] = ["Owner", "Recruiter", "Interviewer"];
 
 export function MembersList({ workspaceId, members, currentUserId, canManage, onChanged }: MembersListProps) {
+  const { dict } = useI18n();
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const ownerCount = members.filter((member) => member.role === "Owner").length;
@@ -30,14 +34,14 @@ export function MembersList({ workspaceId, members, currentUserId, canManage, on
       await changeMemberRole(workspaceId, userId, role);
       onChanged();
     } catch (caught) {
-      setError(describeError(caught, "change this member's role"));
+      setError(describeError(dict, caught, dict.members.changeRoleFailed));
     } finally {
       setPendingUserId(null);
     }
   }
 
   async function handleRemove(userId: string, displayName: string) {
-    if (!window.confirm(`Remove ${displayName} from this workspace?`)) {
+    if (!window.confirm(dict.members.confirmRemove(displayName))) {
       return;
     }
 
@@ -47,7 +51,7 @@ export function MembersList({ workspaceId, members, currentUserId, canManage, on
       await removeMember(workspaceId, userId);
       onChanged();
     } catch (caught) {
-      setError(describeError(caught, "remove this member"));
+      setError(describeError(dict, caught, dict.members.removeFailed));
     } finally {
       setPendingUserId(null);
     }
@@ -81,25 +85,25 @@ export function MembersList({ workspaceId, members, currentUserId, canManage, on
             >
               <div>
                 <span className="text-sm text-text-primary">{member.displayName}</span>
-                {member.userId === currentUserId ? <span className="ml-2 text-xs text-text-muted">(you)</span> : null}
+                {member.userId === currentUserId ? <span className="ml-2 text-xs text-text-muted">({dict.common.you})</span> : null}
               </div>
 
               {canManage ? (
                 <div className="flex items-center gap-2">
                   <label className="sr-only" htmlFor={`role-${member.userId}`}>
-                    Role for {member.displayName}
+                    {dict.members.roleLabelFor(member.displayName)}
                   </label>
                   <select
                     id={`role-${member.userId}`}
                     value={member.role}
                     disabled={isPending || isLastOwner}
                     onChange={(event) => void handleRoleChange(member.userId, event.target.value as WorkspaceRole)}
-                    title={isLastOwner ? "A workspace must always have at least one Owner." : undefined}
+                    title={isLastOwner ? dict.members.lastOwnerTitle : undefined}
                     className="rounded-lg border border-border-strong bg-surface px-2 py-1 text-xs text-text-primary outline-none transition focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand-soft disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
                   >
                     {ROLES.map((role) => (
                       <option key={role} value={role}>
-                        {role}
+                        {roleLabel(dict, role)}
                       </option>
                     ))}
                   </select>
@@ -107,14 +111,14 @@ export function MembersList({ workspaceId, members, currentUserId, canManage, on
                     variant="danger"
                     size="sm"
                     disabled={isPending || isLastOwner}
-                    title={isLastOwner ? "A workspace must always have at least one Owner." : undefined}
+                    title={isLastOwner ? dict.members.lastOwnerTitle : undefined}
                     onClick={() => void handleRemove(member.userId, member.displayName)}
                   >
-                    Remove
+                    {dict.members.remove}
                   </Button>
                 </div>
               ) : (
-                <span className="text-xs uppercase tracking-wide text-text-muted">{member.role}</span>
+                <span className="text-xs uppercase tracking-wide text-text-muted">{roleLabel(dict, member.role)}</span>
               )}
             </motion.li>
           );
@@ -124,12 +128,12 @@ export function MembersList({ workspaceId, members, currentUserId, canManage, on
   );
 }
 
-function describeError(error: unknown, action: string): string {
+function describeError(dict: Dictionary, error: unknown, action: string): string {
   if (error instanceof ApiError && error.hasCode("last_owner")) {
-    return "A workspace must always have at least one Owner.";
+    return dict.errors.last_owner;
   }
   if (error instanceof ApiError) {
-    return error.message;
+    return dict.errors.generic;
   }
-  return `Could not ${action}. Please try again.`;
+  return dict.members.genericFailed(action);
 }

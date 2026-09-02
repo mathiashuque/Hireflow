@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { collapsePanel } from "@/lib/motion";
 import { Button } from "@/components/ui/Button";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 type Tone = "danger" | "warning" | "success" | "info";
 
@@ -21,13 +22,15 @@ type StatusBannerProps = {
   retryLabel?: string;
 };
 
-export function StatusBanner({ tone = "info", role = "status", children, onRetry, retryLabel = "Try again" }: StatusBannerProps) {
+export function StatusBanner({ tone = "info", role = "status", children, onRetry, retryLabel }: StatusBannerProps) {
+  const { dict } = useI18n();
+  const resolvedRetryLabel = retryLabel ?? dict.common.tryAgain;
   return (
     <div role={role} className={`overflow-hidden rounded-lg px-3.5 py-2.5 text-sm ${TONE_STYLES[tone]}`}>
       <p>{children}</p>
       {onRetry ? (
         <Button variant="primary" size="sm" onClick={onRetry} className="mt-3">
-          {retryLabel}
+          {resolvedRetryLabel}
         </Button>
       ) : null}
     </div>

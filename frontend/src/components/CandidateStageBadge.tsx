@@ -1,4 +1,8 @@
+"use client";
+
 import type { CandidateStage } from "@/lib/api/candidates";
+import { useI18n } from "@/i18n/LocaleProvider";
+import { candidateStageLabel } from "@/i18n/enumLabels";
 
 const STYLES: Record<CandidateStage, string> = {
   Applied: "bg-surface-muted text-text-secondary",
@@ -9,9 +13,10 @@ const STYLES: Record<CandidateStage, string> = {
 };
 
 export function CandidateStageBadge({ stage }: { stage: CandidateStage }) {
+  const { dict } = useI18n();
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STYLES[stage]}`}>
-      {stage}
+      {candidateStageLabel(dict, stage)}
     </span>
   );
 }

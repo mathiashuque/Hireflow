@@ -4,12 +4,14 @@ import { useState } from "react";
 import { CANDIDATE_NOTE_MAX_LENGTH } from "@/lib/api/candidates";
 import { Button } from "@/components/ui/Button";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 type CandidateNoteComposerProps = {
   onSubmit: (content: string) => Promise<void>;
 };
 
 export function CandidateNoteComposer({ onSubmit }: CandidateNoteComposerProps) {
+  const { dict } = useI18n();
   const [content, setContent] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,11 +26,11 @@ export function CandidateNoteComposer({ onSubmit }: CandidateNoteComposerProps) 
     }
 
     if (trimmedLength === 0) {
-      setFormError("Note content can't be blank.");
+      setFormError(dict.candidates.noteBlank);
       return;
     }
     if (isOverLimit) {
-      setFormError(`Note content must be at most ${CANDIDATE_NOTE_MAX_LENGTH} characters.`);
+      setFormError(dict.candidates.noteTooLong(CANDIDATE_NOTE_MAX_LENGTH));
       return;
     }
 
@@ -38,7 +40,7 @@ export function CandidateNoteComposer({ onSubmit }: CandidateNoteComposerProps) 
       await onSubmit(content);
       setContent("");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      const message = error instanceof Error ? error.message : dict.common.genericError;
       setFormError(message);
     } finally {
       setIsSubmitting(false);
@@ -54,7 +56,7 @@ export function CandidateNoteComposer({ onSubmit }: CandidateNoteComposerProps) 
       </AnimatedStatus>
 
       <label htmlFor="candidateNoteContent" className="text-sm font-medium text-text-primary">
-        Add an internal note
+        {dict.candidates.addNoteLabel}
       </label>
       <textarea
         id="candidateNoteContent"
@@ -62,16 +64,16 @@ export function CandidateNoteComposer({ onSubmit }: CandidateNoteComposerProps) 
         onChange={(event) => setContent(event.target.value)}
         disabled={isSubmitting}
         rows={4}
-        placeholder="Share interview feedback or recruiting context…"
+        placeholder={dict.candidates.addNotePlaceholder}
         className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand-soft disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
       />
 
       <div className="flex items-center justify-between gap-3">
         <p className={`text-xs ${isOverLimit ? "text-danger-text" : "text-text-muted"}`}>
-          {content.length} / {CANDIDATE_NOTE_MAX_LENGTH}
+          {dict.candidates.noteCharCount(content.length, CANDIDATE_NOTE_MAX_LENGTH)}
         </p>
         <Button type="submit" variant="primary" size="sm" disabled={isSubmitting}>
-          {isSubmitting ? "Adding…" : "Add note"}
+          {isSubmitting ? dict.candidates.addingNote : dict.candidates.addNote}
         </Button>
       </div>
     </form>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CreatedInvitation } from "@/lib/api/workspaces";
 import { Button } from "@/components/ui/Button";
 import { Reveal } from "@/components/motion/Reveal";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 type OneTimeInvitationLinkProps = {
   invitation: CreatedInvitation;
@@ -11,9 +12,10 @@ type OneTimeInvitationLinkProps = {
 };
 
 export function OneTimeInvitationLink({ invitation, onDismiss }: OneTimeInvitationLinkProps) {
+  const { dict, locale } = useI18n();
   const [copied, setCopied] = useState(false);
   const link =
-    typeof window !== "undefined" ? `${window.location.origin}/invitations/${invitation.token}` : "";
+    typeof window !== "undefined" ? `${window.location.origin}/${locale}/invitations/${invitation.token}` : "";
 
   async function handleCopy() {
     try {
@@ -27,10 +29,8 @@ export function OneTimeInvitationLink({ invitation, onDismiss }: OneTimeInvitati
   return (
     <Reveal variant="fade" className="flex flex-col gap-3 rounded-lg border border-brand/25 bg-brand-soft px-4 py-4">
       <div>
-        <p className="text-sm font-semibold text-text-primary">Invitation created for {invitation.email}</p>
-        <p className="mt-1 text-sm text-text-secondary">
-          Copy this link and send it to them yourself — it will not be shown again.
-        </p>
+        <p className="text-sm font-semibold text-text-primary">{dict.invitations.createdFor(invitation.email)}</p>
+        <p className="mt-1 text-sm text-text-secondary">{dict.invitations.copyInstructions}</p>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -38,12 +38,12 @@ export function OneTimeInvitationLink({ invitation, onDismiss }: OneTimeInvitati
           {link}
         </code>
         <Button variant="primary" size="sm" className="shrink-0" onClick={() => void handleCopy()}>
-          {copied ? "Copied" : "Copy link"}
+          {copied ? dict.common.linkCopied : dict.common.copyLink}
         </Button>
       </div>
 
       <button type="button" onClick={onDismiss} className="self-start text-xs font-medium text-brand hover:underline">
-        Done
+        {dict.common.done}
       </button>
     </Reveal>
   );

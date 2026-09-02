@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { staggerContainer, staggerItem } from "@/lib/motion";
+import { useI18n } from "@/i18n/LocaleProvider";
+import { roleLabel } from "@/i18n/enumLabels";
 
 type PendingInvitationsListProps = {
   workspaceId: string;
@@ -15,6 +17,7 @@ type PendingInvitationsListProps = {
 };
 
 export function PendingInvitationsList({ workspaceId, invitations, onRevoked }: PendingInvitationsListProps) {
+  const { dict, formatDate } = useI18n();
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
@@ -26,14 +29,14 @@ export function PendingInvitationsList({ workspaceId, invitations, onRevoked }: 
       await revokeInvitation(workspaceId, invitationId);
       onRevoked();
     } catch {
-      setError("Could not revoke this invitation. Please try again.");
+      setError(dict.invitations.revokeFailed);
     } finally {
       setRevokingId(null);
     }
   }
 
   if (invitations.length === 0) {
-    return <EmptyState title="No pending invitations" />;
+    return <EmptyState title={dict.invitations.noPendingInvitations} />;
   }
 
   return (
@@ -64,8 +67,8 @@ export function PendingInvitationsList({ workspaceId, invitations, onRevoked }: 
               <div>
                 <p className="text-sm text-text-primary">{invitation.email}</p>
                 <p className="text-xs text-text-muted">
-                  {invitation.role} · invited by {invitation.invitedByDisplayName} ·{" "}
-                  {isExpired ? "expired" : `expires ${new Date(invitation.expiresAt).toLocaleDateString()}`}
+                  {roleLabel(dict, invitation.role)} · {dict.invitations.invitedBy(invitation.invitedByDisplayName)} ·{" "}
+                  {isExpired ? dict.invitations.expired : dict.invitations.expires(formatDate(invitation.expiresAt))}
                 </p>
               </div>
               <Button
@@ -73,7 +76,7 @@ export function PendingInvitationsList({ workspaceId, invitations, onRevoked }: 
                 disabled={revokingId === invitation.id}
                 onClick={() => void handleRevoke(invitation.id)}
               >
-                {revokingId === invitation.id ? "Revoking…" : "Revoke"}
+                {revokingId === invitation.id ? dict.invitations.revoking : dict.invitations.revoke}
               </Button>
             </motion.li>
           );
