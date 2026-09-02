@@ -13,6 +13,7 @@ namespace Hireflow.Api.Controllers;
 public sealed class WorkspacesController(
     IWorkspaceService workspaceService,
     IWorkspaceMembershipService membershipService,
+    IWorkspaceOverviewService overviewService,
     ICurrentUser currentUser)
     : ControllerBase
 {
@@ -60,6 +61,23 @@ public sealed class WorkspacesController(
     {
         var members = await workspaceService.ListMembersAsync(currentUser.UserId, workspaceId, cancellationToken);
         return members is null ? NotFound() : Ok(members);
+    }
+
+    [HttpGet("{workspaceId:guid}/overview")]
+    public async Task<ActionResult<WorkspaceOverviewResponse>> GetOverview(
+        Guid workspaceId,
+        [FromQuery] int? activityLimit,
+        CancellationToken cancellationToken)
+    {
+        var result = await overviewService.GetAsync(workspaceId, currentUser.UserId, activityLimit, cancellationToken);
+
+        return result.Outcome switch
+        {
+            GetWorkspaceOverviewOutcome.Success => Ok(result.Overview),
+            GetWorkspaceOverviewOutcome.NotFound => NotFound(),
+            GetWorkspaceOverviewOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(activityLimit), result.Errors)),
+            _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
+        };
     }
 
     [HttpPatch("{workspaceId:guid}/members/{userId:guid}/role")]

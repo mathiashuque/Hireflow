@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkspaceService, WorkspaceService>();
         services.AddScoped<IWorkspaceInvitationService, WorkspaceInvitationService>();
         services.AddScoped<IWorkspaceMembershipService, WorkspaceMembershipService>();
+        services.AddScoped<IWorkspaceOverviewService, WorkspaceOverviewService>();
         services.AddScoped<IJobOpeningService, JobOpeningService>();
         services.AddScoped<ICandidateService, CandidateService>();
         services.AddScoped<ICandidateNoteService, CandidateNoteService>();

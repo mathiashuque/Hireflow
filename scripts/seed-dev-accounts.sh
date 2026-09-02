@@ -175,6 +175,14 @@ move_candidate "$DANA_JSON" "Offer" >/dev/null
 ERIN_JSON="$(add_candidate "Erin Rejected" "erin.rejected@example.com")"
 move_candidate "$ERIN_JSON" "Rejected" >/dev/null
 
+log "Adding internal notes so the workspace overview has note activity"
+CARL_ID="$(jq -r '.id' <<<"$CARL_JSON")"
+DANA_ID="$(jq -r '.id' <<<"$DANA_JSON")"
+api POST "/api/workspaces/$WORKSPACE_ID/candidates/$CARL_ID/notes" "$INTERVIEWER_JAR" \
+  "$(jq -n '{content: "Strong system-design answers; recommend advancing to the next round."}')" >/dev/null
+api POST "/api/workspaces/$WORKSPACE_ID/candidates/$DANA_ID/notes" "$OWNER_JAR" \
+  "$(jq -n '{content: "Reference checks came back positive. Preparing an offer."}')" >/dev/null
+
 cat <<EOF
 
 Seed complete.
@@ -182,6 +190,7 @@ Seed complete.
 Workspace:    $WORKSPACE_NAME ($WORKSPACE_ID)
 Open job:     $JOB_OPEN_TITLE ($JOB_OPEN_ID) -- candidate intake enabled
               5 candidates seeded across Applied/Screening/Interview/Offer/Rejected
+              2 internal notes seeded on Carla and Dana
 Draft job:    $JOB_DRAFT_TITLE -- candidate intake disabled
 
 Accounts (dev-only, do not reuse these credentials anywhere else):
