@@ -200,6 +200,20 @@ public sealed class AuthEndpointsTests(PostgresContainerFixture postgres) : IAsy
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Csrf_token_is_issued_when_a_tls_terminating_proxy_forwards_https()
+    {
+        using var proxyFactory = new HireflowApiFactory(postgres.ConnectionString, environment: "Testing");
+        var cookies = new CookieCapturingHandler();
+        var client = proxyFactory.CreateDefaultClient(cookies);
+        client.DefaultRequestHeaders.Add("X-Forwarded-Proto", "https");
+
+        var response = await client.GetAsync("/api/auth/csrf");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Contains("XSRF-TOKEN", cookies.Cookies.Keys);
+    }
+
     private HttpClient CreateClient(out CookieCapturingHandler cookies)
     {
         cookies = new CookieCapturingHandler();

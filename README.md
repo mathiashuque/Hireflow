@@ -374,7 +374,9 @@ repo root as context, deploying from `main`, health-checked at
 `/api/health/ready`. It declares `ASPNETCORE_HTTP_PORTS`/`PORT=8080` to match
 the image's `EXPOSE 8080`, and non-secret production settings
 (`WorkspaceInvitations__LifetimeDays`, `Health__DatabaseTimeoutSeconds`, log
-levels). Two values are intentionally *not* in the file (`sync: false` —
+levels). The API processes Render's forwarded HTTPS scheme before antiforgery so
+Secure auth/CSRF cookies work across Render's TLS-terminating proxy. Two values
+are intentionally *not* in the file (`sync: false` —
 Render prompts for them once in its dashboard on Blueprint creation, then
 they're edited there): `ConnectionStrings__Database` (Neon's **pooled**
 connection string) and `Cors__AllowedOrigins__0` (the exact Vercel Production
