@@ -23,14 +23,16 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Database");
+        var configuredConnectionString = configuration.GetConnectionString("Database");
 
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (string.IsNullOrWhiteSpace(configuredConnectionString))
         {
             throw new InvalidOperationException(
                 "ConnectionStrings:Database is required outside Development. " +
                 "Configure it through a secure environment variable.");
         }
+
+        var connectionString = PostgresConnectionString.Normalize(configuredConnectionString);
 
         services.AddDbContext<HireflowDbContext>(options =>
             options.UseNpgsql(connectionString));
