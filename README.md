@@ -300,7 +300,7 @@ silently running with a broken/insecure default:
 
 | Setting | Required in Production | Failure if missing/invalid |
 | --- | --- | --- |
-| `ConnectionStrings__Database` | Yes | Throws immediately — never falls back to local credentials |
+| `ConnectionStrings__Database` | Yes | Accepts Npgsql key/value syntax or a `postgresql://` URI; throws immediately when missing or malformed |
 | `Cors__AllowedOrigins__0` (at least one) | Yes | Throws immediately — never allows a wildcard origin |
 | `WorkspaceInvitations__LifetimeDays` | No (defaults to `7`) | Startup fails if explicitly set to `0` or negative |
 | `Health__DatabaseTimeoutSeconds` | No (defaults to `5`) | Startup fails if explicitly set to `0` or negative |
@@ -382,7 +382,9 @@ origin). There is no Render-managed database — Neon is the only Production
 datastore. Validate the Blueprint against Render's current schema (dashboard
 preview/validation) before the first deploy; provider schemas change.
 
-**Neon.** A dedicated Production project, never the local/test database. Two
+**Neon.** A dedicated Production project, never the local/test database. The API
+accepts Neon's copied `postgresql://` URI directly (including its `sslmode` and
+`channel_binding` query parameters), as well as Npgsql's key/value format. Two
 connection strings from the same project: the **direct** endpoint, used only
 for running migrations from a trusted local/one-off environment, and the
 **pooled** endpoint, used by the running API (`ConnectionStrings__Database` on
