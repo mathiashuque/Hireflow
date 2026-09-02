@@ -69,6 +69,14 @@ export const es: Dictionary = {
       },
     ],
   },
+  seo: {
+    landingTitle: "Hireflow — Seguimiento de contrataciones para equipos pequeños",
+    landingDescription:
+      "Hireflow es un rastreador de contrataciones seguro y multiempresa: organiza puestos, flujos de candidatos y decisiones de contratación en un espacio de trabajo por equipo.",
+    ogImageAlt: "Hireflow — un rastreador enfocado de flujos de contratación",
+    appDescription:
+      "Un rastreador de contrataciones seguro y multiempresa para organizar puestos, flujos de candidatos y decisiones de contratación.",
+  },
   auth: {
     loginTitle: "Bienvenido de nuevo",
     loginSubtitle: "Inicia sesión para ver tus candidatos y puestos abiertos.",

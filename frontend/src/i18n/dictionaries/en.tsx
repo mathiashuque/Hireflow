@@ -69,6 +69,14 @@ export const en = {
       },
     ],
   },
+  seo: {
+    landingTitle: "Hireflow — Focused hiring pipelines for small teams",
+    landingDescription:
+      "Hireflow is a secure, multi-tenant hiring tracker: organize job openings, candidate pipelines, and hiring decisions in one workspace per team.",
+    ogImageAlt: "Hireflow — a focused hiring pipeline tracker",
+    appDescription:
+      "A secure, multi-tenant hiring tracker for organizing job openings, candidate pipelines, and hiring decisions.",
+  },
   auth: {
     loginTitle: "Welcome back",
     loginSubtitle: "Log in to see your candidates and job openings.",

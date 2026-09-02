@@ -398,7 +398,41 @@ branch `main`. Production env vars: `API_PROXY_TARGET=https://<render-service>.o
 what enables the same-origin proxy path). Preview deployments must not carry
 `API_PROXY_TARGET` pointed at Production — they should have no Production API
 access by default, since Render CORS only allows the one Production origin
-anyway.
+anyway. Also set `SITE_URL` to the exact Production frontend origin (e.g.
+`https://hireflow.example.com`, no path/query/fragment) — see **SEO, indexing,
+and brand assets** below.
+
+**SEO, indexing, and brand assets.** `SITE_URL` (`frontend/src/lib/seo/site-origin.ts`)
+is the one source of truth for the public frontend origin used in absolute SEO
+URLs — `metadataBase`, canonical/hreflang links, `robots.txt`'s `Sitemap` line,
+`sitemap.xml` entries, and Open Graph/Twitter image URLs. It is deliberately
+separate from `NEXT_PUBLIC_API_URL` (the API host) and `API_PROXY_TARGET` (the
+Render proxy target) — neither is a safe stand-in for the public website
+origin, and Production canonical URLs are never derived from an API host or an
+unstable preview-deployment URL. Outside development, an unset or malformed
+`SITE_URL` fails the build/boot fast rather than silently falling back; local
+development and local production builds may omit it and fall back to
+`http://localhost:3000`.
+
+Indexing policy: only the localized marketing landing pages (`/en`, `/es`) are
+indexable and listed in `/sitemap.xml`, with reciprocal `hreflang` alternates
+and an `x-default` pointing at `/en` (the repository default locale). Every
+authenticated or transactional route — `/[lang]/login`, `/[lang]/register`,
+`/[lang]/dashboard`, all `/[lang]/workspaces/**` routes, and especially
+`/[lang]/invitations/[token]` (which carries a sensitive, single-use token in
+its URL) — carries explicit `noindex, nofollow` metadata via nested layouts
+under `frontend/src/app/[lang]` and is disallowed in `/robots.txt`. Robots
+exclusion is a crawler courtesy, not an access-control mechanism; every one of
+those routes remains independently authenticated/authorized server-side.
+
+Branded favicon/app icons, the Apple touch icon, and the shared Open Graph/
+Twitter card are generated from the funnel mark in
+`frontend/src/components/BrandMark.tsx` via Next's `icon`/`apple-icon`/
+`opengraph-image`/`twitter-image` file conventions
+(`frontend/src/app/{icon,icon1,icon2,apple-icon,opengraph-image,twitter-image}.tsx`),
+so there are no generated binary assets to keep in sync by hand. The proxy
+(`frontend/src/proxy.ts`) explicitly skips these route names so metadata
+assets are never locale-redirected.
 
 **Release order.**
 
