@@ -4,6 +4,7 @@ using Hireflow.Api.Observability;
 using Hireflow.Api.OpenApi;
 using Hireflow.Application.Common;
 using Hireflow.Infrastructure;
+using Microsoft.AspNetCore.HttpOverrides;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,10 +34,21 @@ builder.Services.AddHireflowAntiforgery(builder.Environment);
 builder.Services.AddHireflowCors(builder.Configuration);
 builder.Services.AddHireflowProblemDetails();
 builder.Services.AddHireflowOpenApi();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    // Render terminates TLS before forwarding the request to Kestrel. Only trust the
+    // forwarded scheme (not host/client identity), which antiforgery needs in order to
+    // issue Secure cookies without treating the internal HTTP hop as an insecure request.
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+
+app.UseForwardedHeaders();
 
 // Establishes the request's correlation ID (and X-Request-ID/traceId consistency) before
 // anything else runs, so every later middleware — including the exception handler and
