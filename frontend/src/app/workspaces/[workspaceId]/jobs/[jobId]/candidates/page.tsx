@@ -10,10 +10,7 @@ import { getJob, type JobOpening } from "@/lib/api/jobs";
 import { getWorkspace, type WorkspaceDetail } from "@/lib/api/workspaces";
 import {
   CANDIDATE_STAGES,
-  createCandidate,
   isConcurrencyConflict,
-  isDuplicateEmailConflict,
-  isJobNotOpenConflict,
   isNoOpStageConflict,
   listCandidates,
   moveCandidateStage,
@@ -21,17 +18,16 @@ import {
   type CandidateStage,
 } from "@/lib/api/candidates";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
-import { CandidateDetailsForm } from "@/components/CandidateDetailsForm";
+import { AddCandidateModal } from "@/components/AddCandidateModal";
 import { CandidateStageMoveControl } from "@/components/CandidateStageMoveControl";
 import { AppShell } from "@/components/shell/AppShell";
 import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { Reveal } from "@/components/motion/Reveal";
-import { collapsePanel, staggerContainer, staggerItem } from "@/lib/motion";
+import { staggerContainer, staggerItem } from "@/lib/motion";
 
 type PageState =
   | { status: "loading" }
@@ -45,7 +41,7 @@ export default function JobCandidatesPage(props: PageProps<"/workspaces/[workspa
   const { status: authStatus, user } = useAuth();
   const router = useRouter();
   const [state, setState] = useState<PageState>({ status: "loading" });
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [moveNotice, setMoveNotice] = useState<string | null>(null);
 
   const fetchState = useCallback(async (): Promise<PageState> => {
@@ -149,39 +145,40 @@ export default function JobCandidatesPage(props: PageProps<"/workspaces/[workspa
       <div className="mt-6">
         <BoardContent
           state={state}
-          showAddForm={showAddForm}
           moveNotice={moveNotice}
           onRetry={retry}
-          onAddClick={() => setShowAddForm(true)}
-          onAddCancel={() => setShowAddForm(false)}
-          onAdded={() => {
-            setShowAddForm(false);
-            refresh();
-          }}
+          onAddClick={() => setShowAddModal(true)}
           onMove={handleMove}
         />
       </div>
+
+      {state.status === "ready" ? (
+        <AddCandidateModal
+          open={showAddModal}
+          workspaceId={state.workspace.id}
+          jobId={state.job.id}
+          onClose={() => setShowAddModal(false)}
+          onAdded={() => {
+            setShowAddModal(false);
+            refresh();
+          }}
+        />
+      ) : null}
     </AppShell>
   );
 }
 
 function BoardContent({
   state,
-  showAddForm,
   moveNotice,
   onRetry,
   onAddClick,
-  onAddCancel,
-  onAdded,
   onMove,
 }: {
   state: PageState;
-  showAddForm: boolean;
   moveNotice: string | null;
   onRetry: () => void;
   onAddClick: () => void;
-  onAddCancel: () => void;
-  onAdded: () => void;
   onMove: (candidate: Candidate, target: CandidateStage) => Promise<void>;
 }) {
   if (state.status === "loading") {
@@ -232,7 +229,7 @@ function BoardContent({
         title={job.title}
         description="Hiring board for this job"
         actions={
-          canManage && !showAddForm ? (
+          canManage ? (
             <Button variant="primary" size="sm" disabled={!canAdd} onClick={onAddClick}>
               Add candidate
             </Button>
@@ -254,17 +251,6 @@ function BoardContent({
             : "This job is Closed. Reopen it to add new candidates; existing candidates can still be moved and edited."}
         </p>
       ) : null}
-
-      <motion.div
-        variants={collapsePanel}
-        initial={false}
-        animate={showAddForm && canAdd ? "show" : "hidden"}
-        className={showAddForm && canAdd ? "overflow-visible" : "overflow-hidden"}
-      >
-        {showAddForm && canAdd ? (
-          <AddCandidatePanel workspaceId={workspace.id} jobId={job.id} onAdded={onAdded} onCancel={onAddCancel} />
-        ) : null}
-      </motion.div>
 
       <div role="group" aria-label="Hiring pipeline board" className="flex gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-5 sm:overflow-visible">
         {columns.map(({ stage, candidates: stageCandidates }) => (
@@ -316,51 +302,5 @@ function BoardContent({
 
       {!canManage ? <p className="text-xs text-text-muted">You have read-only access to this job&apos;s candidates.</p> : null}
     </Reveal>
-  );
-}
-
-function AddCandidatePanel({
-  workspaceId,
-  jobId,
-  onAdded,
-  onCancel,
-}: {
-  workspaceId: string;
-  jobId: string;
-  onAdded: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <Card className="p-4">
-      <h2 className="text-sm font-semibold text-text-primary">Add candidate</h2>
-      <p className="mt-1 text-sm text-text-muted">New candidates start in the Applied stage.</p>
-      <div className="mt-4">
-        <CandidateDetailsForm
-          submitLabel="Add candidate"
-          submittingLabel="Adding…"
-          onCancel={onCancel}
-          onSubmit={async ({ name, email }) => {
-            try {
-              await createCandidate(workspaceId, jobId, { name, email });
-              onAdded();
-            } catch (error) {
-              if (error instanceof ApiUnavailableError) {
-                throw error;
-              }
-              if (isJobNotOpenConflict(error)) {
-                throw new Error("This job is no longer open. Refresh the page to see its current status.");
-              }
-              if (isDuplicateEmailConflict(error)) {
-                throw new Error("A candidate with this email already exists for this job.");
-              }
-              if (error instanceof ApiError) {
-                throw new Error(error.fieldErrors.Name?.[0] ?? error.message);
-              }
-              throw new Error("Something went wrong. Please try again.");
-            }
-          }}
-        />
-      </div>
-    </Card>
   );
 }
