@@ -1,0 +1,52 @@
+# Render Blueprint for Hireflow's production API. Deploys only from `main`.
+#
+# Values marked `sync: false` are never stored here — Render prompts for them once in
+# the dashboard on initial Blueprint creation, and they are edited there afterward.
+# There is intentionally no `databases:` entry: Neon is the only Production database,
+# never a Render-managed Postgres instance.
+#
+# Verify this file against Render's current Blueprint schema (via the dashboard's
+# Blueprint preview/validation) before the first deploy — the schema can change between
+# when this was written and when it's used.
+services:
+  - type: web
+    name: hireflow-api
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    dockerContext: .
+    dockerfilePath: backend/Hireflow.Api/Dockerfile
+    healthCheckPath: /api/health/ready
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      # .NET's container base image already binds Kestrel to 8080 via this variable
+      # (see backend/Hireflow.Api/Dockerfile's EXPOSE 8080); setting it explicitly here
+      # avoids relying on an undocumented image default. It's a plain runtime env var
+      # read by the .NET host itself, not a shell-expanded Docker CMD argument, so the
+      # Dockerfile's exec-form ENTRYPOINT doesn't need to reference it.
+      - key: ASPNETCORE_HTTP_PORTS
+        value: "8080"
+      # Tells Render which port to route to; Render otherwise defaults to 10000 and
+      # falls back to auto-detecting the bound port, which this makes unambiguous.
+      - key: PORT
+        value: "8080"
+      # Neon pooled connection string (runtime traffic only — migrations use the direct
+      # endpoint from a trusted local/one-off environment, never this one). Entered in
+      # the Render dashboard after Blueprint creation.
+      - key: ConnectionStrings__Database
+        sync: false
+      # The exact Vercel Production origin, e.g. https://hireflow.vercel.app. Must stay
+      # a single explicit origin — CORS here is credentialed and cannot use a wildcard.
+      - key: Cors__AllowedOrigins__0
+        sync: false
+      - key: WorkspaceInvitations__LifetimeDays
+        value: "7"
+      - key: Health__DatabaseTimeoutSeconds
+        value: "5"
+      - key: Logging__LogLevel__Microsoft.AspNetCore
+        value: Warning
+      - key: Logging__LogLevel__Microsoft.EntityFrameworkCore
+        value: Warning
