@@ -348,26 +348,111 @@ timeouts:
 
 Nothing in CI contacts Neon or requires production credentials.
 
-### Deployment checklist (deployment-neutral)
+### Production deployment (Render + Neon + Vercel)
 
-Hireflow isn't deployed yet; this is what's needed whenever that happens, matching
-`idea.md`'s expected architecture (Next.js on Vercel, the API on a Docker-compatible
-host of your choice, PostgreSQL on Neon) without endorsing or configuring a specific
-provider:
+Production is Render (Dockerized API), Neon (PostgreSQL), and Vercel (Next.js
+frontend), deployed only from `main`. `develop` is never deployed.
 
-1. Provision a Neon database and copy its **direct** (non-pooled) connection string
-   for running migrations, plus its pooled connection string for the running API.
-2. Apply migrations explicitly against that database (`dotnet ef database update`,
-   as above) as a release step — never automatically at API startup.
-3. Deploy the API image to a Docker-compatible host with `ASPNETCORE_ENVIRONMENT=Production`,
-   the Neon pooled connection string, and the deployed frontend's exact origin in
-   `Cors__AllowedOrigins__0`. Confirm the platform observes the container's
-   `HEALTHCHECK`/`/api/health/ready` for routing decisions.
-4. Deploy the frontend to Vercel (or an equivalent static/SSR host) with
-   `NEXT_PUBLIC_API_URL` pointed at the deployed API's public origin.
-5. Verify `/api/health/live` and `/api/health/ready` both return `200`, then run
-   the end-to-end dev flow (register, reload, log out/in) against the deployed
-   stack before treating it as ready for use.
+**Same-origin proxy, and why.** Vercel serves the frontend and proxies
+`/api/:path*` to the Render API (`frontend/next.config.ts`'s `rewrites()`, driven
+by the server-only `API_PROXY_TARGET` env var — never `NEXT_PUBLIC_`, so the
+Render hostname never reaches the browser bundle). The browser only ever talks
+to the Vercel origin. This isn't a style preference: a direct browser→Render
+call would be cross-site, which forces `SameSite=None` cookies and — critically —
+would put the readable `XSRF-TOKEN` cookie on the Render host, where the
+frontend's JavaScript can't read it to echo back as `X-XSRF-TOKEN`. Proxying
+same-origin keeps every cookie on the Vercel host instead. `getApiBaseUrl()`
+(`frontend/src/lib/api/config.ts`) reflects this: with `NEXT_PUBLIC_API_URL`
+unset (the Production default) it returns `""`, so requests resolve to
+same-origin paths like `/api/auth/me`. Local development keeps setting
+`NEXT_PUBLIC_API_URL=http://localhost:8080` to call the API directly, bypassing
+the proxy entirely.
+
+**Render Blueprint.** The root `render.yaml` defines a single Docker web
+service, `hireflow-api`, building `backend/Hireflow.Api/Dockerfile` with the
+repo root as context, deploying from `main`, health-checked at
+`/api/health/ready`. It declares `ASPNETCORE_HTTP_PORTS`/`PORT=8080` to match
+the image's `EXPOSE 8080`, and non-secret production settings
+(`WorkspaceInvitations__LifetimeDays`, `Health__DatabaseTimeoutSeconds`, log
+levels). Two values are intentionally *not* in the file (`sync: false` —
+Render prompts for them once in its dashboard on Blueprint creation, then
+they're edited there): `ConnectionStrings__Database` (Neon's **pooled**
+connection string) and `Cors__AllowedOrigins__0` (the exact Vercel Production
+origin). There is no Render-managed database — Neon is the only Production
+datastore. Validate the Blueprint against Render's current schema (dashboard
+preview/validation) before the first deploy; provider schemas change.
+
+**Neon.** A dedicated Production project, never the local/test database. Two
+connection strings from the same project: the **direct** endpoint, used only
+for running migrations from a trusted local/one-off environment, and the
+**pooled** endpoint, used by the running API (`ConnectionStrings__Database` on
+Render). Both require TLS (`SSL Mode=Require`). The pooled string is stored
+only in Render's secret environment; the direct string is stored only wherever
+migrations are actually run — neither is committed (see `.env.example`'s
+Production reference section, which documents the shape without real values).
+
+**Migrations stay explicit.** The API never calls `Database.Migrate()` at
+startup (Production or otherwise) — see [Database migrations](#database-migrations).
+Before/alongside a Render deploy, apply migrations against Neon's **direct**
+endpoint from a trusted environment:
+
+```bash
+cd backend
+ConnectionStrings__Database="<neon-direct-connection-string>" \
+  dotnet ef database update --project Hireflow.Infrastructure --startup-project Hireflow.Api
+```
+
+If the Render plan in use supports `preDeployCommand`, a pre-deploy migration
+step can replace the manual gate above — only wire it in after verifying it
+actually runs once before the new web version on that plan. Until then, this
+is a mandatory manual release gate before every Render deploy that includes a
+migration.
+
+**Vercel.** Project root `frontend`, framework preset Next.js, Production
+branch `main`. Production env vars: `API_PROXY_TARGET=https://<render-service>.onrender.com`
+(server-side only) and no Production `NEXT_PUBLIC_API_URL` (leaving it unset is
+what enables the same-origin proxy path). Preview deployments must not carry
+`API_PROXY_TARGET` pointed at Production — they should have no Production API
+access by default, since Render CORS only allows the one Production origin
+anyway.
+
+**Release order.**
+
+1. Reserve/create the Vercel project first, to learn its stable Production
+   origin (needed for Render CORS below) — a deploy can be incomplete at this
+   point.
+2. Provision Neon; retain the direct and pooled connection strings securely.
+3. Create the Render service from `render.yaml`; enter the pooled Neon string
+   and the exact Vercel origin as its dashboard-supplied secrets.
+4. Apply migrations via the direct Neon endpoint (above).
+5. Confirm `/api/health/live` and `/api/health/ready` both return `200` on
+   Render.
+6. Set Vercel's `API_PROXY_TARGET` to the Render origin and deploy Production.
+7. Run the full smoke/security checklist below.
+
+**Rollback.** Both Render and Vercel keep prior deploys; redeploying the
+previous successful build on either platform is the rollback path (from each
+platform's deploy history/dashboard). Applied migrations are not
+automatically reversed — only roll one back if a reviewed, tested backward
+migration exists for it.
+
+**Production smoke checklist**, run with disposable test accounts after every
+deploy that touches auth, CORS, or the proxy:
+
+- Register, reload the session, log out, log in, create a workspace, create a
+  job, create/move a candidate, add a note, load the overview — all through
+  the deployed Vercel origin, confirming in browser devtools that network
+  requests target the Vercel origin (never the Render origin directly) and
+  that cookies are present.
+- An unrelated `Origin` is rejected by CORS; a request missing the CSRF header
+  on a mutation is rejected; an anonymous request to a protected route is
+  rejected; a guessed cross-tenant resource ID returns a non-enumerating
+  `404`; invalid input returns `validation_error`; a stale concurrency token
+  returns the `stale_version` conflict — each with the expected status and
+  problem `code`, never a raw exception.
+- Render logs stay structured and free of secrets, raw invitation tokens, note
+  content, or candidate PII.
+- OpenAPI/Scalar remain unavailable in Production (`/openapi`, `/scalar`).
 
 ## Workspaces
 
