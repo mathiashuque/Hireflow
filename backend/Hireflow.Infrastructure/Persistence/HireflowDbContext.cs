@@ -32,6 +32,8 @@ public sealed class HireflowDbContext(DbContextOptions<HireflowDbContext> option
 
     public DbSet<CandidateStageHistory> CandidateStageHistories => Set<CandidateStageHistory>();
 
+    public DbSet<CandidateNote> CandidateNotes => Set<CandidateNote>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

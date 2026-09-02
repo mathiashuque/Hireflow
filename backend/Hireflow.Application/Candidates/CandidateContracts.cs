@@ -192,3 +192,51 @@ public sealed record GetCandidateHistoryResult(GetCandidateHistoryOutcome Outcom
 
     public static GetCandidateHistoryResult NotFound() => new(GetCandidateHistoryOutcome.NotFound, null);
 }
+
+/// <summary>Request body for <c>POST /api/workspaces/{workspaceId}/candidates/{candidateId}/notes</c>.</summary>
+public sealed class CreateCandidateNoteRequest
+{
+    /// <summary>Plain text only. The caller never supplies the author, workspace, candidate, or timestamp.</summary>
+    [Required]
+    [MaxLength(4000)]
+    public required string Content { get; init; }
+}
+
+public sealed record CandidateNoteResponse(
+    Guid Id,
+    Guid CandidateId,
+    string Content,
+    Guid AuthorUserId,
+    string? AuthorDisplayName,
+    DateTimeOffset CreatedAt);
+
+public enum CreateCandidateNoteOutcome
+{
+    Success,
+    NotFound,
+    ValidationFailed,
+}
+
+public sealed record CreateCandidateNoteResult(CreateCandidateNoteOutcome Outcome, CandidateNoteResponse? Note, IReadOnlyList<string> Errors)
+{
+    public static CreateCandidateNoteResult Success(CandidateNoteResponse note) => new(CreateCandidateNoteOutcome.Success, note, []);
+
+    public static CreateCandidateNoteResult NotFound() => new(CreateCandidateNoteOutcome.NotFound, null, []);
+
+    public static CreateCandidateNoteResult ValidationFailed(IReadOnlyList<string> errors) =>
+        new(CreateCandidateNoteOutcome.ValidationFailed, null, errors);
+}
+
+public enum ListCandidateNotesOutcome
+{
+    Success,
+    NotFound,
+}
+
+public sealed record ListCandidateNotesResult(ListCandidateNotesOutcome Outcome, IReadOnlyList<CandidateNoteResponse>? Notes)
+{
+    public static ListCandidateNotesResult Success(IReadOnlyList<CandidateNoteResponse> notes) =>
+        new(ListCandidateNotesOutcome.Success, notes);
+
+    public static ListCandidateNotesResult NotFound() => new(ListCandidateNotesOutcome.NotFound, null);
+}

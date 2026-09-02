@@ -346,6 +346,11 @@ Endpoints (all require workspace membership; authentication alone is not enough)
   updated candidate.
 - `GET /api/workspaces/{workspaceId}/candidates/{candidateId}/history` — any
   member; returns that candidate's immutable stage history, newest first.
+- `POST /api/workspaces/{workspaceId}/candidates/{candidateId}/notes` — any
+  member, including Interviewer; adds a plain-text internal note.
+- `GET /api/workspaces/{workspaceId}/candidates/{candidateId}/notes` — any
+  member, including Interviewer; returns that candidate's internal notes,
+  oldest first.
 
 Candidate name/email are treated as personal data: they are never written to
 routine application logs, and a guessed or cross-tenant workspace/job/candidate
@@ -395,6 +400,32 @@ is the only way to move a candidate in this slice; there is no drag-and-drop.
 Interviewers see the same board read-only. A stage conflict (someone else moved
 the candidate first) refreshes the board and explains what happened rather than
 silently overwriting.
+
+### Internal notes
+
+Every current workspace member — including Interviewer, who cannot edit or
+move candidates — can add and read plain-text internal notes on a candidate,
+so the hiring team can capture interview feedback and recruiting context.
+Notes are append-only: there is no edit or delete endpoint, `CandidateNote`
+has no `UpdatedAt`, and its fields are immutable after creation. Content is
+trimmed, must be 1–4,000 characters after trimming, and internal newlines are
+preserved; HTML/Markdown is never interpreted — content is always rendered as
+inert plain text, on both the API and the frontend. `AuthorUserId` and
+`CreatedAt` are always resolved server-side from the authenticated caller and
+clock, never accepted from the request body. Notes are listed oldest-first,
+then by ID, reading as a discussion timeline, and are returned in full (no
+pagination) at this portfolio scale.
+
+A `CandidateNote` row is tenant-owned and enforced by the same composite
+foreign key pattern as `CandidateStageHistory` — the database rejects a note
+for a candidate in a different workspace. Removing a workspace member deletes
+their membership only; their prior notes and attribution remain intact, and
+the removal immediately blocks that former member from listing or adding
+further notes (the standard non-enumerating `404` for nonmembers). Adding a
+note never touches `Candidate.Stage`, `Candidate.UpdatedAt`, or its `xmin`
+concurrency version, and never appends a stage-history row — notes and stage
+history are separate concepts recorded independently. Note content is never
+written to routine application logs or error responses.
 
 ## License
 
