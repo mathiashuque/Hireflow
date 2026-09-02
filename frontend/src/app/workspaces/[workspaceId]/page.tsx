@@ -75,14 +75,14 @@ export default function WorkspaceOverviewPage(props: PageProps<"/workspaces/[wor
 
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
-      <AppShell>
+      <AppShell maxWidth="xl">
         <SkeletonBlock label="Loading your account…" />
       </AppShell>
     );
   }
 
   return (
-    <AppShell>
+    <AppShell maxWidth="xl">
       {state.status === "loading" && <SkeletonBlock label="Loading overview…" />}
 
       {state.status === "not-found" && (
@@ -128,17 +128,19 @@ function WorkspaceOverviewContent({ overview }: { overview: WorkspaceOverview })
         candidateCounts={overview.candidateCounts}
       />
 
-      <div>
-        <h2 className="text-sm font-semibold text-text-primary">Active jobs</h2>
-        <div className="mt-3">
-          <JobWorkloadList workspaceId={overview.workspaceId} workload={overview.workload} />
+      <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+        <div>
+          <h2 className="text-sm font-semibold text-text-primary">Active jobs</h2>
+          <div className="mt-3">
+            <JobWorkloadList workspaceId={overview.workspaceId} workload={overview.workload} />
+          </div>
         </div>
-      </div>
 
-      <div>
-        <h2 className="text-sm font-semibold text-text-primary">Recent activity</h2>
-        <div className="mt-3">
-          <RecentActivityFeed workspaceId={overview.workspaceId} activity={overview.recentActivity} />
+        <div>
+          <h2 className="text-sm font-semibold text-text-primary">Recent activity</h2>
+          <div className="mt-3">
+            <RecentActivityFeed workspaceId={overview.workspaceId} activity={overview.recentActivity} />
+          </div>
         </div>
       </div>
     </Reveal>

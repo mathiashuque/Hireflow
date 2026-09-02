@@ -7,7 +7,7 @@ import { motion } from "motion/react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiUnavailableError } from "@/lib/api/client";
 import { listWorkspaces, type WorkspaceDetail, type WorkspaceSummary } from "@/lib/api/workspaces";
-import { WorkspaceCreateForm } from "@/components/WorkspaceCreateForm";
+import { WorkspaceCreateModal } from "@/components/WorkspaceCreateModal";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Reveal } from "@/components/motion/Reveal";
@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const { status: authStatus, user, retry: retryAuth } = useAuth();
   const router = useRouter();
   const [workspacesState, setWorkspacesState] = useState<WorkspacesState>({ status: "loading" });
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const fetchWorkspaces = useCallback(async (): Promise<WorkspacesState> => {
     try {
@@ -93,6 +94,8 @@ export default function DashboardPage() {
   }
 
   function handleCreated(workspace: WorkspaceDetail) {
+    // Navigate immediately without first closing the modal, so it never briefly
+    // reappears over the dashboard mid-transition.
     router.push(`/workspaces/${workspace.id}`);
   }
 
@@ -100,20 +103,30 @@ export default function DashboardPage() {
     <AppShell maxWidth="xl">
       <Reveal className="flex flex-1 flex-col gap-10">
         <PageHeader eyebrow="Welcome" title={user.displayName} />
-        <WorkspacesSection state={workspacesState} onCreated={handleCreated} onRetry={retryWorkspaces} />
+        <WorkspacesSection
+          state={workspacesState}
+          onRetry={retryWorkspaces}
+          onOpenCreate={() => setIsCreateModalOpen(true)}
+        />
       </Reveal>
+
+      <WorkspaceCreateModal
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreated={handleCreated}
+      />
     </AppShell>
   );
 }
 
 function WorkspacesSection({
   state,
-  onCreated,
   onRetry,
+  onOpenCreate,
 }: {
   state: WorkspacesState;
-  onCreated: (workspace: WorkspaceDetail) => void;
   onRetry: () => void;
+  onOpenCreate: () => void;
 }) {
   if (state.status === "loading") {
     return <SkeletonBlock label="Loading your workspaces…" />;
@@ -136,20 +149,32 @@ function WorkspacesSection({
 
   if (state.workspaces.length === 0) {
     return (
-      <div className="flex flex-col gap-6">
-        <EmptyState
-          title="You're not in a workspace yet"
-          description="A workspace is where your team's job openings, candidates, and hiring activity live. Create one to get started, or ask a teammate to invite you to theirs."
-        />
-        <div className="max-w-sm self-center">
-          <WorkspaceCreateForm onCreated={onCreated} />
-        </div>
-      </div>
+      <EmptyState
+        title="You're not in a workspace yet"
+        description="A workspace is where your team's job openings, candidates, and hiring activity live. Create one to get started, or ask a teammate to invite you to theirs."
+        action={
+          <Button variant="primary" onClick={onOpenCreate}>
+            Create workspace
+          </Button>
+        }
+      />
     );
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary">Your workspaces</h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            {state.workspaces.length} workspace{state.workspaces.length === 1 ? "" : "s"} you belong to.
+          </p>
+        </div>
+        <Button variant="primary" onClick={onOpenCreate}>
+          Create workspace
+        </Button>
+      </div>
+
       <motion.ul
         initial="hidden"
         animate="show"
@@ -170,13 +195,6 @@ function WorkspacesSection({
           </motion.li>
         ))}
       </motion.ul>
-
-      <div className="max-w-sm">
-        <h2 className="text-sm font-semibold text-text-primary">Create another workspace</h2>
-        <div className="mt-3">
-          <WorkspaceCreateForm onCreated={onCreated} />
-        </div>
-      </div>
     </div>
   );
 }

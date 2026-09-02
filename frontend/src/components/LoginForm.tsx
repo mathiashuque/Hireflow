@@ -40,7 +40,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex w-full max-w-sm flex-col gap-4">
+    <form onSubmit={handleSubmit} noValidate className="flex w-full flex-col gap-4">
       <AnimatedStatus id={formError}>
         <StatusBanner tone="danger" role="alert">
           {formError}

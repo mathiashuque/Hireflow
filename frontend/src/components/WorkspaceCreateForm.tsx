@@ -9,19 +9,26 @@ import { createWorkspace, type WorkspaceDetail } from "@/lib/api/workspaces";
 
 type WorkspaceCreateFormProps = {
   onCreated: (workspace: WorkspaceDetail) => void;
+  /** Reports pending-submission state to a parent that needs to gate its own dismissal (e.g. a modal). */
+  onSubmittingChange?: (isSubmitting: boolean) => void;
 };
 
-export function WorkspaceCreateForm({ onCreated }: WorkspaceCreateFormProps) {
+export function WorkspaceCreateForm({ onCreated, onSubmittingChange }: WorkspaceCreateFormProps) {
   const [name, setName] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function updateSubmitting(next: boolean) {
+    setIsSubmitting(next);
+    onSubmittingChange?.(next);
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
     setFieldErrors({});
-    setIsSubmitting(true);
+    updateSubmitting(true);
 
     try {
       const workspace = await createWorkspace({ name });
@@ -37,12 +44,12 @@ export function WorkspaceCreateForm({ onCreated }: WorkspaceCreateFormProps) {
         setFormError("Something went wrong. Please try again.");
       }
     } finally {
-      setIsSubmitting(false);
+      updateSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex w-full max-w-sm flex-col gap-4">
+    <form onSubmit={handleSubmit} noValidate className="flex w-full flex-col gap-4">
       <AnimatedStatus id={formError}>
         <StatusBanner tone="danger" role="alert">
           {formError}
