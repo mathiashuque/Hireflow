@@ -409,10 +409,14 @@ URLs — `metadataBase`, canonical/hreflang links, `robots.txt`'s `Sitemap` line
 separate from `NEXT_PUBLIC_API_URL` (the API host) and `API_PROXY_TARGET` (the
 Render proxy target) — neither is a safe stand-in for the public website
 origin, and Production canonical URLs are never derived from an API host or an
-unstable preview-deployment URL. Outside development, an unset or malformed
-`SITE_URL` fails the build/boot fast rather than silently falling back; local
-development and local production builds may omit it and fall back to
-`http://localhost:3000`.
+unstable preview-deployment URL. Only a real Vercel Production build
+(`VERCEL_ENV=production`, set automatically by Vercel) requires it — an unset
+or malformed `SITE_URL` there fails the build fast rather than silently
+falling back. Every other context — local development, CI, local production
+builds, the frontend Docker image, Vercel previews — may omit it and falls
+back to `http://localhost:3000`; `next build` always runs with
+`NODE_ENV=production`, so `NODE_ENV` alone can't tell a real Production
+deploy apart from CI or Docker build validation.
 
 Indexing policy: only the localized marketing landing pages (`/en`, `/es`) are
 indexable and listed in `/sitemap.xml`, with reciprocal `hreflang` alternates

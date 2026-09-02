@@ -7,25 +7,31 @@
  * website origin.
  *
  * Set `SITE_URL` to the exact Production frontend origin (for example
- * `https://hireflow.example.com`), with no path, query, or fragment. In any
- * non-development environment, an unset or malformed `SITE_URL` fails fast at
- * import time rather than silently deriving a canonical URL from an unstable
- * preview deployment or the API host. Local development and local production
- * builds may omit it and fall back to `http://localhost:3000`.
+ * `https://hireflow.example.com`), with no path, query, or fragment. Only a
+ * real Vercel Production build (`VERCEL_ENV === "production"`) requires it —
+ * an unset or malformed `SITE_URL` there fails fast at import time rather
+ * than silently deriving a canonical URL from an unstable preview deployment
+ * or the API host. Every other context (local development, CI, local
+ * production builds, the frontend Docker image, Vercel previews) may omit it
+ * and falls back to `http://localhost:3000`, since `next build` always runs
+ * with `NODE_ENV=production` regardless of where or why it's being built —
+ * `NODE_ENV` alone can't distinguish a real Production deploy from CI/Docker
+ * build validation.
  */
 function resolveSiteOrigin(): string {
   const raw = process.env.SITE_URL;
-  const isDevelopment = process.env.NODE_ENV === "development";
+  const isVercelProduction = process.env.VERCEL_ENV === "production";
 
   if (!raw) {
-    if (isDevelopment) {
-      return "http://localhost:3000";
+    if (isVercelProduction) {
+      throw new Error(
+        "SITE_URL is not set. Set it to the exact public frontend origin (e.g. " +
+          '"https://hireflow.example.com") with no path, query, or fragment. Local ' +
+          "development, CI, and other non-Production builds may omit it to fall " +
+          "back to http://localhost:3000.",
+      );
     }
-    throw new Error(
-      "SITE_URL is not set. Set it to the exact public frontend origin (e.g. " +
-        '"https://hireflow.example.com") with no path, query, or fragment. Local ' +
-        "development may omit it to fall back to http://localhost:3000.",
-    );
+    return "http://localhost:3000";
   }
 
   let parsed: URL;
@@ -36,7 +42,7 @@ function resolveSiteOrigin(): string {
   }
 
   const isLocalhostDev = parsed.hostname === "localhost" && parsed.protocol === "http:";
-  if (parsed.protocol !== "https:" && !(isDevelopment && isLocalhostDev)) {
+  if (parsed.protocol !== "https:" && !(!isVercelProduction && isLocalhostDev)) {
     throw new Error(`SITE_URL must use https:, got "${raw}".`);
   }
 
