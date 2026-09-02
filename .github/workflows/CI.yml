@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_EF_VERSION: 10.0.10
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore backend/Hireflow.slnx
+
+      - name: Build
+        run: dotnet build backend/Hireflow.slnx --configuration Release --no-restore
+
+      # Uses disposable Testcontainers PostgreSQL per test class (never Neon), including
+      # applying every migration to a fresh database and exercising the readiness health
+      # check against it — see Hireflow.Tests/Integration/HireflowApiFactory.cs.
+      - name: Test
+        run: dotnet test backend/Hireflow.slnx --configuration Release --no-build
+        timeout-minutes: 12
+
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version ${{ env.DOTNET_EF_VERSION }}
+
+      # Fails the build if an entity/mapping change wasn't captured in a migration. Needs
+      # no live database: EF only builds the design-time model to compare against the
+      # last migration's snapshot. The connection string is a well-formed placeholder so
+      # DI composition succeeds; it is never actually connected to.
+      - name: Check for pending EF model changes
+        working-directory: backend
+        env:
+          ConnectionStrings__Database: Host=localhost;Port=5432;Database=hireflow_ci_placeholder;Username=hireflow;Password=hireflow
+          Cors__AllowedOrigins__0: http://localhost:3000
+        run: dotnet ef migrations has-pending-model-changes --project Hireflow.Infrastructure --startup-project Hireflow.Api
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  docker:
+    name: Docker build validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Validates both production images actually build; never pushed anywhere and needs
+      # no registry credentials.
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Hireflow.Api/Dockerfile
+          push: false
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          push: false
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend

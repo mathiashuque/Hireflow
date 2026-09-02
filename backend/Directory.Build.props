@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Some distro-packaged .NET SDKs omit optional package-pruning metadata. -->
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+  </PropertyGroup>
+</Project>

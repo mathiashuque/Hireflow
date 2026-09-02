@@ -1,0 +1,52 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Node / Next.js
+**/node_modules/
+**/.next/
+**/out/
+**/coverage/
+*.tsbuildinfo
+
+# Environment and local secrets
+.env
+.env.*
+!.env*.example
+**/appsettings.*.local.json
+
+# Local-only tooling and instructions
+**/.agents/
+**/.claude/
+**/.codex/
+**/.cursor/
+**/.windsurf/
+**/.ai/
+**/.githooks/
+**/AGENTS.md
+**/AGENTS.override.md
+**/CLAUDE.md
+**/CLAUDE.local.md
+**/CONTEXT.md
+**/AI_INSTRUCTIONS.md
+**/prompts/
+**/.github/instructions/
+**/.github/copilot-instructions.md
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
