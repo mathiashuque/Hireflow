@@ -11,6 +11,8 @@ type CandidateDetailsFormProps = {
   submittingLabel: string;
   onSubmit: (input: { name: string; email: string }) => Promise<void>;
   onCancel?: () => void;
+  /** Reports pending-submission state to a parent that needs to gate its own dismissal (e.g. a modal). */
+  onSubmittingChange?: (isSubmitting: boolean) => void;
 };
 
 export function CandidateDetailsForm({
@@ -20,16 +22,22 @@ export function CandidateDetailsForm({
   submittingLabel,
   onSubmit,
   onCancel,
+  onSubmittingChange,
 }: CandidateDetailsFormProps) {
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function updateSubmitting(next: boolean) {
+    setIsSubmitting(next);
+    onSubmittingChange?.(next);
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
-    setIsSubmitting(true);
+    updateSubmitting(true);
 
     try {
       await onSubmit({ name, email });
@@ -37,7 +45,7 @@ export function CandidateDetailsForm({
       const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
       setFormError(message);
     } finally {
-      setIsSubmitting(false);
+      updateSubmitting(false);
     }
   }
 
