@@ -7,14 +7,17 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
 import { getWorkspace } from "@/lib/api/workspaces";
 import {
+  createCandidateNote,
   getCandidate,
   getCandidateHistory,
+  getCandidateNotes,
   isConcurrencyConflict,
   isDuplicateEmailConflict,
   isNoOpStageConflict,
   moveCandidateStage,
   updateCandidate,
   type Candidate,
+  type CandidateNote,
   type CandidateStage,
   type CandidateStageHistoryEntry,
 } from "@/lib/api/candidates";
@@ -22,13 +25,21 @@ import { CandidateStageBadge } from "@/components/CandidateStageBadge";
 import { CandidateDetailsForm } from "@/components/CandidateDetailsForm";
 import { CandidateStageMoveControl } from "@/components/CandidateStageMoveControl";
 import { CandidateStageHistoryTimeline } from "@/components/CandidateStageHistoryTimeline";
+import { CandidateNotesTimeline } from "@/components/CandidateNotesTimeline";
+import { CandidateNoteComposer } from "@/components/CandidateNoteComposer";
 
 type PageState =
   | { status: "loading" }
   | { status: "unavailable" }
   | { status: "not-found" }
   | { status: "error" }
-  | { status: "ready"; candidate: Candidate; canManage: boolean; history: CandidateStageHistoryEntry[] };
+  | {
+      status: "ready";
+      candidate: Candidate;
+      canManage: boolean;
+      history: CandidateStageHistoryEntry[];
+      notes: CandidateNote[];
+    };
 
 export default function CandidateDetailPage(props: PageProps<"/workspaces/[workspaceId]/candidates/[candidateId]">) {
   const { workspaceId, candidateId } = use(props.params);
@@ -55,11 +66,16 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
         return { status: "not-found" };
       }
 
+      const notes = await getCandidateNotes(workspaceId, candidateId);
+      if (!notes) {
+        return { status: "not-found" };
+      }
+
       // This only decides which controls the UI shows; the backend independently
       // enforces every mutation regardless of what the client believes the role is.
       const canManage = workspace.role === "Owner" || workspace.role === "Recruiter";
 
-      return { status: "ready", candidate, canManage, history };
+      return { status: "ready", candidate, canManage, history, notes };
     } catch (error) {
       return { status: error instanceof ApiUnavailableError ? "unavailable" : "error" };
     }
@@ -117,7 +133,7 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
         email: input.email,
         version: state.candidate.version,
       });
-      setState({ status: "ready", candidate: updated, canManage: state.canManage, history: state.history });
+      setState({ status: "ready", candidate: updated, canManage: state.canManage, history: state.history, notes: state.notes });
       setIsEditing(false);
     } catch (error) {
       if (isConcurrencyConflict(error)) {
@@ -163,6 +179,27 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
         throw new Error("You don't have permission to move this candidate.");
       }
       throw new Error("Something went wrong moving this candidate. Please try again.");
+    }
+  }
+
+  async function handleAddNote(content: string) {
+    if (state.status !== "ready") {
+      return;
+    }
+
+    try {
+      const note = await createCandidateNote(workspaceId, candidateId, content);
+      setState((current) =>
+        current.status === "ready" ? { ...current, notes: [...current.notes, note] } : current,
+      );
+    } catch (error) {
+      if (error instanceof ApiUnavailableError) {
+        throw error;
+      }
+      if (error instanceof ApiError) {
+        throw new Error(error.fieldErrors.Content?.[0] ?? error.message);
+      }
+      throw new Error("Something went wrong adding this note. Please try again.");
     }
   }
 
@@ -219,12 +256,14 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
             candidate={state.candidate}
             canManage={state.canManage}
             history={state.history}
+            notes={state.notes}
             isEditing={isEditing}
             conflictMessage={conflictMessage}
             onEdit={() => setIsEditing(true)}
             onCancelEdit={() => setIsEditing(false)}
             onSaveEdit={handleSaveEdit}
             onMoveStage={handleMoveStage}
+            onAddNote={handleAddNote}
           />
         )}
       </section>
@@ -236,22 +275,26 @@ function CandidateDetail({
   candidate,
   canManage,
   history,
+  notes,
   isEditing,
   conflictMessage,
   onEdit,
   onCancelEdit,
   onSaveEdit,
   onMoveStage,
+  onAddNote,
 }: {
   candidate: Candidate;
   canManage: boolean;
   history: CandidateStageHistoryEntry[];
+  notes: CandidateNote[];
   isEditing: boolean;
   conflictMessage: string | null;
   onEdit: () => void;
   onCancelEdit: () => void;
   onSaveEdit: (input: { name: string; email: string }) => Promise<void>;
   onMoveStage: (target: CandidateStage) => Promise<void>;
+  onAddNote: (content: string) => Promise<void>;
 }) {
   return (
     <div className="flex flex-col gap-8">
@@ -313,6 +356,16 @@ function CandidateDetail({
         <h2 className="text-sm font-semibold text-slate-950">Stage history</h2>
         <div className="mt-2">
           <CandidateStageHistoryTimeline history={history} />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-sm font-semibold text-slate-950">Internal notes</h2>
+        <div className="mt-2">
+          <CandidateNoteComposer onSubmit={onAddNote} />
+        </div>
+        <div className="mt-4">
+          <CandidateNotesTimeline notes={notes} />
         </div>
       </div>
     </div>

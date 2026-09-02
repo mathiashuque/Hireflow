@@ -136,6 +136,41 @@ export async function getCandidateHistory(
   }
 }
 
+export type CandidateNote = {
+  id: string;
+  candidateId: string;
+  content: string;
+  authorUserId: string;
+  /** Present only when the author's account could still be resolved. */
+  authorDisplayName: string | null;
+  createdAt: string;
+};
+
+export const CANDIDATE_NOTE_MAX_LENGTH = 4000;
+
+/** Returns `null` when the workspace/candidate does not exist or the caller is not a member. */
+export async function getCandidateNotes(workspaceId: string, candidateId: string): Promise<CandidateNote[] | null> {
+  try {
+    const notes = await apiRequest<CandidateNote[]>(`/api/workspaces/${workspaceId}/candidates/${candidateId}/notes`, {
+      method: "GET",
+    });
+    return notes ?? [];
+  } catch (error) {
+    if (isNotFound(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function createCandidateNote(workspaceId: string, candidateId: string, content: string): Promise<CandidateNote> {
+  const note = await apiRequest<CandidateNote>(`/api/workspaces/${workspaceId}/candidates/${candidateId}/notes`, {
+    method: "POST",
+    body: { content },
+  });
+  return note!;
+}
+
 /** True when a stage move failed because the candidate is already in the requested stage. */
 export function isNoOpStageConflict(error: unknown): boolean {
   return error instanceof ApiError && error.status === 409 && error.message.toLowerCase().includes("already in this stage");

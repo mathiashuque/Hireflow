@@ -62,6 +62,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkspaceMembershipService, WorkspaceMembershipService>();
         services.AddScoped<IJobOpeningService, JobOpeningService>();
         services.AddScoped<ICandidateService, CandidateService>();
+        services.AddScoped<ICandidateNoteService, CandidateNoteService>();
 
         services.Configure<WorkspaceInvitationOptions>(configuration.GetSection(WorkspaceInvitationOptions.SectionName));
 

@@ -11,7 +11,10 @@ namespace Hireflow.Api.Controllers;
 [ApiController]
 [Route("api/workspaces/{workspaceId:guid}/candidates")]
 [Authorize]
-public sealed class CandidatesController(ICandidateService candidateService, ICurrentUser currentUser)
+public sealed class CandidatesController(
+    ICandidateService candidateService,
+    ICandidateNoteService candidateNoteService,
+    ICurrentUser currentUser)
     : ControllerBase
 {
     [HttpGet("{candidateId:guid}")]
@@ -92,6 +95,41 @@ public sealed class CandidatesController(ICandidateService candidateService, ICu
         {
             GetCandidateHistoryOutcome.Success => Ok(result.History),
             GetCandidateHistoryOutcome.NotFound => NotFound(),
+            _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
+        };
+    }
+
+    [HttpPost("{candidateId:guid}/notes")]
+    [ValidateCsrfToken]
+    public async Task<ActionResult<CandidateNoteResponse>> AddNote(
+        Guid workspaceId,
+        Guid candidateId,
+        [FromBody] CreateCandidateNoteRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await candidateNoteService.CreateAsync(workspaceId, currentUser.UserId, candidateId, request, cancellationToken);
+
+        return result.Outcome switch
+        {
+            CreateCandidateNoteOutcome.Success => Ok(result.Note),
+            CreateCandidateNoteOutcome.NotFound => NotFound(),
+            CreateCandidateNoteOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(request.Content), result.Errors)),
+            _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
+        };
+    }
+
+    [HttpGet("{candidateId:guid}/notes")]
+    public async Task<ActionResult<IReadOnlyList<CandidateNoteResponse>>> GetNotes(
+        Guid workspaceId,
+        Guid candidateId,
+        CancellationToken cancellationToken)
+    {
+        var result = await candidateNoteService.ListAsync(workspaceId, currentUser.UserId, candidateId, cancellationToken);
+
+        return result.Outcome switch
+        {
+            ListCandidateNotesOutcome.Success => Ok(result.Notes),
+            ListCandidateNotesOutcome.NotFound => NotFound(),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }
