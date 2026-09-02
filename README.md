@@ -181,6 +181,56 @@ It creates `owner@example.com`, `recruiter@example.com`, and `interviewer@exampl
 job (candidate intake enabled), and a Draft job (intake disabled). Requires `curl` and
 `jq`. Not idempotent — rerun it only against a database you've reset.
 
+## API errors
+
+Every API failure — however it originates — returns `application/problem+json` with
+the same shape: standard `type`/`title`/`status`/`detail` (never exception messages,
+stack traces, SQL/provider details, or connection strings), a stable machine-readable
+`code`, a `traceId` correlating the response to server-side logs, and field-keyed
+`errors` for validation failures. This holds for hand-built controller responses,
+`[ApiController]` model-binding/data-annotation failures, cookie-auth `401`/`403`
+(no HTML login redirect), an unmatched route, a missing/invalid CSRF token, and an
+unhandled exception alike — a single central customizer
+(`Hireflow.Api/Errors/HireflowProblemDetailsOptions.cs`) and `app.UseStatusCodePages()`
+converge every path onto this contract, so no individual response can drift from it.
+
+`code` is the client contract: frontend control flow branches on it (see
+`ApiError.hasCode(...)` in `frontend/src/lib/api/client.ts`), never on `title`/`detail`
+prose, which may be reworded or localized without breaking anything. General codes:
+`validation_error`, `unauthorized`, `forbidden`, `not_found`, `conflict`, `gone`,
+`unsupported_media_type`, `internal_error`. Domain-specific codes layer on top where the
+frontend needs to distinguish behavior within the same status, e.g. `stale_version` and
+`no_op_stage_move` (both `409` on a candidate stage move), or `job_not_open` and
+`duplicate_candidate_email` (both `409` on candidate creation) — see
+`Hireflow.Api/Errors/ProblemCodes.cs` for the complete, versioned catalog.
+
+A missing/inaccessible workspace, job, or candidate always returns the same `404`
+shape, `code: "not_found"`, and generic detail regardless of which case actually
+occurred — tenant non-enumeration holds through the error contract, not just the
+success path. A production `500` never includes `detail`; diagnose it server-side via
+the logged `traceId`.
+
+## API documentation
+
+In Development only, the API serves its generated OpenAPI 3.1 document at
+`/openapi/v1.json` and an interactive reference (via [Scalar](https://scalar.com)) at
+`/api-docs`. Neither route is registered outside Development — there is no
+Production-time OpenAPI/reference exposure to opt out of, and enabling one would be a
+deliberate, separate configuration change. The document covers every controller
+endpoint with a unique `operationId`, a tag per functional area (System,
+Authentication, Workspaces, Members, Invitations, Jobs, Candidates), the real cookie
+authentication scheme (`CookieAuth`, never a fictitious bearer/JWT scheme), and the
+`X-XSRF-TOKEN` header requirement on every state-changing operation.
+
+The reference's "Try it" can exercise anonymous `GET`s directly, but it cannot supply
+your session or CSRF token on its own — the auth cookie is intentionally not
+JavaScript-readable, and the CSRF cookie is scoped to same-origin frontend requests.
+Authenticate with a real cookie-aware client instead: sign in through the frontend and
+use its browser session (with matching dev tooling to inspect requests), or drive the
+API directly with `backend/Hireflow.Api/Hireflow.Api.http` (VS Code's REST Client
+extension or any compatible tool), which documents the manual CSRF-priming sequence
+step by step.
+
 ## Workspaces
 
 A workspace is Hireflow's tenant: job openings, candidates, and hiring activity

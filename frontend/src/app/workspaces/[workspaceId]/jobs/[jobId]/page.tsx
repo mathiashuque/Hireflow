@@ -6,7 +6,15 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
 import { getWorkspace } from "@/lib/api/workspaces";
-import { changeJobStatus, getJob, isConcurrencyConflict, updateJob, type JobOpening, type JobStatus } from "@/lib/api/jobs";
+import {
+  changeJobStatus,
+  getJob,
+  isConcurrencyConflict,
+  isInvalidTransitionConflict,
+  updateJob,
+  type JobOpening,
+  type JobStatus,
+} from "@/lib/api/jobs";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
 import { JobDetailsForm } from "@/components/JobDetailsForm";
 
@@ -138,6 +146,8 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
       if (isConcurrencyConflict(error)) {
         setConflictMessage("This job was changed by someone else. The latest version is now shown below.");
         refresh();
+      } else if (error instanceof ApiError && isInvalidTransitionConflict(error)) {
+        setStatusError(error.message);
       } else if (error instanceof ApiUnavailableError) {
         setStatusError(error.message);
       } else if (error instanceof ApiError) {

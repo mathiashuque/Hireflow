@@ -10,6 +10,7 @@ import { getWorkspace, type WorkspaceDetail } from "@/lib/api/workspaces";
 import {
   CANDIDATE_STAGES,
   createCandidate,
+  isConcurrencyConflict,
   isDuplicateEmailConflict,
   isJobNotOpenConflict,
   isNoOpStageConflict,
@@ -112,7 +113,7 @@ export default function JobCandidatesPage(props: PageProps<"/workspaces/[workspa
       if (isNoOpStageConflict(error)) {
         throw new Error("The candidate is already in this stage.");
       }
-      if (error instanceof ApiError && error.status === 409) {
+      if (isConcurrencyConflict(error)) {
         setMoveNotice(`${candidate.name} was changed by someone else. The board has been refreshed.`);
         refresh();
         return;

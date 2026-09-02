@@ -173,28 +173,22 @@ export async function createCandidateNote(workspaceId: string, candidateId: stri
 
 /** True when a stage move failed because the candidate is already in the requested stage. */
 export function isNoOpStageConflict(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 409 && error.message.toLowerCase().includes("already in this stage");
+  return error instanceof ApiError && error.hasCode("no_op_stage_move");
 }
 
 /** True when a create failed because the target job is Draft or Closed. */
 export function isJobNotOpenConflict(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 409 && error.message.toLowerCase().includes("open job");
+  return error instanceof ApiError && error.hasCode("job_not_open");
 }
 
 /** True when a mutation failed because another candidate in the job already has this email. */
 export function isDuplicateEmailConflict(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 409 && error.message.toLowerCase().includes("already exists");
+  return error instanceof ApiError && error.hasCode("duplicate_candidate_email");
 }
 
 /** True when an edit failed because the candidate changed since the client last loaded it. */
 export function isConcurrencyConflict(error: unknown): boolean {
-  return (
-    error instanceof ApiError &&
-    error.status === 409 &&
-    !isJobNotOpenConflict(error) &&
-    !isDuplicateEmailConflict(error) &&
-    !isNoOpStageConflict(error)
-  );
+  return error instanceof ApiError && error.hasCode("stale_version");
 }
 
 function isNotFound(error: unknown): boolean {

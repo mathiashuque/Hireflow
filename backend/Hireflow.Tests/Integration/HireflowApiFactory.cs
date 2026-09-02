@@ -12,11 +12,12 @@ namespace Hireflow.Tests.Integration;
 /// Boots the real API pipeline (Program.cs) against a disposable PostgreSQL container
 /// instead of production configuration.
 /// </summary>
-public sealed class HireflowApiFactory(string connectionString, TimeProvider? timeProvider = null) : WebApplicationFactory<Program>
+public sealed class HireflowApiFactory(string connectionString, TimeProvider? timeProvider = null, string environment = "Development")
+    : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
+        builder.UseEnvironment(environment);
 
         builder.ConfigureAppConfiguration((_, configBuilder) =>
         {

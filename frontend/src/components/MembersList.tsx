@@ -110,7 +110,7 @@ export function MembersList({ workspaceId, members, currentUserId, canManage, on
 }
 
 function describeError(error: unknown, action: string): string {
-  if (error instanceof ApiError && error.status === 409) {
+  if (error instanceof ApiError && error.hasCode("last_owner")) {
     return "A workspace must always have at least one Owner.";
   }
   if (error instanceof ApiError) {

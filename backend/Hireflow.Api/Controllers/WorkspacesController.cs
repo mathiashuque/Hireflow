@@ -1,9 +1,9 @@
 using Hireflow.Api.Authentication;
+using Hireflow.Api.Errors;
 using Hireflow.Application.Common;
 using Hireflow.Application.Workspaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Hireflow.Api.Controllers;
 
@@ -28,11 +28,13 @@ public sealed class WorkspacesController(
         return result.Outcome switch
         {
             CreateWorkspaceOutcome.Success => Ok(result.Workspace),
-            CreateWorkspaceOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(request.Name), result.Errors)),
-            CreateWorkspaceOutcome.SlugConflict => Problem(
+            CreateWorkspaceOutcome.ValidationFailed => this.ValidationProblemWithCode(
+                ProblemResultExtensions.ToModelState(nameof(request.Name), result.Errors)),
+            CreateWorkspaceOutcome.SlugConflict => this.ProblemWithCode(
+                StatusCodes.Status409Conflict,
+                ProblemCodes.WorkspaceSlugConflict,
                 title: "Workspace creation failed",
-                detail: result.Errors.FirstOrDefault(),
-                statusCode: StatusCodes.Status409Conflict),
+                detail: result.Errors.FirstOrDefault()),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }
@@ -75,7 +77,8 @@ public sealed class WorkspacesController(
         {
             GetWorkspaceOverviewOutcome.Success => Ok(result.Overview),
             GetWorkspaceOverviewOutcome.NotFound => NotFound(),
-            GetWorkspaceOverviewOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(activityLimit), result.Errors)),
+            GetWorkspaceOverviewOutcome.ValidationFailed => this.ValidationProblemWithCode(
+                ProblemResultExtensions.ToModelState(nameof(activityLimit), result.Errors)),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }
@@ -95,11 +98,13 @@ public sealed class WorkspacesController(
             ChangeMemberRoleOutcome.Success => NoContent(),
             ChangeMemberRoleOutcome.NotFound => NotFound(),
             ChangeMemberRoleOutcome.Forbidden => Forbid(),
-            ChangeMemberRoleOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(request.Role), result.Errors)),
-            ChangeMemberRoleOutcome.LastOwner => Problem(
+            ChangeMemberRoleOutcome.ValidationFailed => this.ValidationProblemWithCode(
+                ProblemResultExtensions.ToModelState(nameof(request.Role), result.Errors)),
+            ChangeMemberRoleOutcome.LastOwner => this.ProblemWithCode(
+                StatusCodes.Status409Conflict,
+                ProblemCodes.LastOwner,
                 title: "Role change rejected",
-                detail: result.Errors.FirstOrDefault(),
-                statusCode: StatusCodes.Status409Conflict),
+                detail: result.Errors.FirstOrDefault()),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }
@@ -115,22 +120,12 @@ public sealed class WorkspacesController(
             RemoveMemberOutcome.Success => NoContent(),
             RemoveMemberOutcome.NotFound => NotFound(),
             RemoveMemberOutcome.Forbidden => Forbid(),
-            RemoveMemberOutcome.LastOwner => Problem(
+            RemoveMemberOutcome.LastOwner => this.ProblemWithCode(
+                StatusCodes.Status409Conflict,
+                ProblemCodes.LastOwner,
                 title: "Removal rejected",
-                detail: "A workspace must always have at least one Owner.",
-                statusCode: StatusCodes.Status409Conflict),
+                detail: "A workspace must always have at least one Owner."),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
-    }
-
-    private static ModelStateDictionary ToModelState(string key, IReadOnlyList<string> errors)
-    {
-        var modelState = new ModelStateDictionary();
-        foreach (var error in errors)
-        {
-            modelState.AddModelError(key, error);
-        }
-
-        return modelState;
     }
 }

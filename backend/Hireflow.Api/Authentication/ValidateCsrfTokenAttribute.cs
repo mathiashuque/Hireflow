@@ -1,3 +1,4 @@
+using Hireflow.Api.Errors;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -24,15 +25,17 @@ public sealed class ValidateCsrfTokenAttribute : Attribute, IAsyncActionFilter
         }
         catch (AntiforgeryValidationException)
         {
-            context.Result = new ObjectResult(new ProblemDetails
+            var problemDetails = new ProblemDetails
             {
                 Title = "Missing or invalid CSRF token",
                 Detail = "Call GET /api/auth/csrf and echo the XSRF-TOKEN cookie back as the X-XSRF-TOKEN header.",
                 Status = StatusCodes.Status400BadRequest,
-            })
-            {
-                StatusCode = StatusCodes.Status400BadRequest,
+                Type = $"https://hireflow.dev/problems/{ProblemCodes.CsrfTokenInvalid}",
             };
+            problemDetails.Extensions[HireflowProblemDetailsOptions.CodeExtensionKey] = ProblemCodes.CsrfTokenInvalid;
+            problemDetails.Extensions[HireflowProblemDetailsOptions.TraceIdExtensionKey] = context.HttpContext.TraceIdentifier;
+
+            context.Result = new ObjectResult(problemDetails) { StatusCode = StatusCodes.Status400BadRequest };
             return;
         }
 

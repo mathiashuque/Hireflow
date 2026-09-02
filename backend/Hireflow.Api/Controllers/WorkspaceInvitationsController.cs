@@ -1,9 +1,9 @@
 using Hireflow.Api.Authentication;
+using Hireflow.Api.Errors;
 using Hireflow.Application.Common;
 using Hireflow.Application.Workspaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Hireflow.Api.Controllers;
 
@@ -27,15 +27,18 @@ public sealed class WorkspaceInvitationsController(IWorkspaceInvitationService i
             CreateInvitationOutcome.Success => Ok(result.Invitation),
             CreateInvitationOutcome.NotFound => NotFound(),
             CreateInvitationOutcome.Forbidden => Forbid(),
-            CreateInvitationOutcome.ValidationFailed => ValidationProblem(ToModelState(nameof(request.Role), result.Errors)),
-            CreateInvitationOutcome.AlreadyMember => Problem(
+            CreateInvitationOutcome.ValidationFailed => this.ValidationProblemWithCode(
+                ProblemResultExtensions.ToModelState(nameof(request.Role), result.Errors)),
+            CreateInvitationOutcome.AlreadyMember => this.ProblemWithCode(
+                StatusCodes.Status409Conflict,
+                ProblemCodes.InvitationAlreadyMember,
                 title: "Invitation failed",
-                detail: result.Errors.FirstOrDefault(),
-                statusCode: StatusCodes.Status409Conflict),
-            CreateInvitationOutcome.DuplicateActiveInvitation => Problem(
+                detail: result.Errors.FirstOrDefault()),
+            CreateInvitationOutcome.DuplicateActiveInvitation => this.ProblemWithCode(
+                StatusCodes.Status409Conflict,
+                ProblemCodes.InvitationDuplicate,
                 title: "Invitation failed",
-                detail: result.Errors.FirstOrDefault(),
-                statusCode: StatusCodes.Status409Conflict),
+                detail: result.Errors.FirstOrDefault()),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
     }
@@ -67,16 +70,5 @@ public sealed class WorkspaceInvitationsController(IWorkspaceInvitationService i
             RevokeInvitationOutcome.Forbidden => Forbid(),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),
         };
-    }
-
-    private static ModelStateDictionary ToModelState(string key, IReadOnlyList<string> errors)
-    {
-        var modelState = new ModelStateDictionary();
-        foreach (var error in errors)
-        {
-            modelState.AddModelError(key, error);
-        }
-
-        return modelState;
     }
 }
