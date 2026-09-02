@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { AnimatePresence, motion } from "motion/react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
 import { getWorkspace, type WorkspaceDetail } from "@/lib/api/workspaces";
@@ -10,6 +11,14 @@ import { createJob, listJobs, type JobOpening, type JobStatus } from "@/lib/api/
 import { WorkspaceNav } from "@/components/WorkspaceNav";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
 import { JobDetailsForm } from "@/components/JobDetailsForm";
+import { AppShell } from "@/components/shell/AppShell";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SkeletonBlock } from "@/components/ui/Skeleton";
+import { Reveal } from "@/components/motion/Reveal";
+import { collapsePanel, fadeIn, staggerContainer, staggerItem } from "@/lib/motion";
 
 type StatusFilter = JobStatus | "All";
 
@@ -82,39 +91,28 @@ export default function WorkspaceJobsPage(props: PageProps<"/workspaces/[workspa
 
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6">
-        <p className="text-sm text-slate-500">Loading your account…</p>
-      </main>
+      <AppShell>
+        <SkeletonBlock label="Loading your account…" />
+      </AppShell>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col px-6 py-8 sm:px-10">
-      <nav className="flex items-center justify-between">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-slate-950">
-          Hireflow
-        </Link>
-        <Link href="/dashboard" className="text-sm font-medium text-indigo-600 hover:underline">
-          Back to workspaces
-        </Link>
-      </nav>
-
-      <section className="flex-1 py-12">
-        <JobsContent
-          state={state}
-          filter={filter}
-          showCreateForm={showCreateForm}
-          onFilterChange={setFilter}
-          onRetry={retry}
-          onCreateClick={() => setShowCreateForm(true)}
-          onCreateCancel={() => setShowCreateForm(false)}
-          onCreated={(job) => {
-            setShowCreateForm(false);
-            router.push(`/workspaces/${job.workspaceId}/jobs/${job.id}`);
-          }}
-        />
-      </section>
-    </main>
+    <AppShell>
+      <JobsContent
+        state={state}
+        filter={filter}
+        showCreateForm={showCreateForm}
+        onFilterChange={setFilter}
+        onRetry={retry}
+        onCreateClick={() => setShowCreateForm(true)}
+        onCreateCancel={() => setShowCreateForm(false)}
+        onCreated={(job) => {
+          setShowCreateForm(false);
+          router.push(`/workspaces/${job.workspaceId}/jobs/${job.id}`);
+        }}
+      />
+    </AppShell>
   );
 }
 
@@ -138,17 +136,17 @@ function JobsContent({
   onCreated: (job: JobOpening) => void;
 }) {
   if (state.status === "loading") {
-    return <p className="text-sm text-slate-500">Loading jobs…</p>;
+    return <SkeletonBlock label="Loading jobs…" />;
   }
 
   if (state.status === "not-found") {
     return (
       <div className="max-w-md">
-        <h1 className="text-xl font-semibold text-slate-950">Workspace unavailable</h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <h1 className="text-xl font-semibold text-text-primary">Workspace unavailable</h1>
+        <p className="mt-2 text-sm text-text-secondary">
           This workspace doesn&apos;t exist, or you don&apos;t have access to it.
         </p>
-        <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline">
+        <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
           Back to your workspaces
         </Link>
       </div>
@@ -158,18 +156,14 @@ function JobsContent({
   if (state.status === "unavailable" || state.status === "error") {
     return (
       <div className="flex max-w-md flex-col items-start gap-3">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-text-secondary">
           {state.status === "unavailable"
             ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
             : "Something went wrong loading jobs."}
         </p>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-        >
+        <Button variant="primary" size="sm" onClick={onRetry}>
           Try again
-        </button>
+        </Button>
       </div>
     );
   }
@@ -178,24 +172,21 @@ function JobsContent({
   const canManage = workspace.role === "Owner" || workspace.role === "Recruiter";
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-600">{workspace.role}</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">{workspace.name}</h1>
-      </div>
+    <Reveal className="flex flex-col gap-8">
+      <PageHeader eyebrow={workspace.role} title={workspace.name} />
 
       <WorkspaceNav workspaceId={workspace.id} />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div role="group" aria-label="Filter jobs by status" className="flex gap-1">
+        <div role="group" aria-label="Filter jobs by status" className="flex gap-1 overflow-x-auto">
           {FILTERS.map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => onFilterChange(option)}
               aria-pressed={filter === option}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
-                filter === option ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+                filter === option ? "bg-slate-900 text-white" : "bg-surface-muted text-text-secondary hover:bg-border"
               }`}
             >
               {option}
@@ -204,45 +195,59 @@ function JobsContent({
         </div>
 
         {canManage && !showCreateForm ? (
-          <button
-            type="button"
-            onClick={onCreateClick}
-            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-          >
+          <Button variant="primary" size="sm" onClick={onCreateClick}>
             New job
-          </button>
+          </Button>
         ) : null}
       </div>
 
-      {showCreateForm ? (
-        <CreateJobPanel workspaceId={workspace.id} onCreated={onCreated} onCancel={onCreateCancel} />
-      ) : null}
+      <AnimatePresence initial={false}>
+        {showCreateForm ? (
+          <motion.div key="create-job" variants={collapsePanel} initial="hidden" animate="show" exit="exit">
+            <CreateJobPanel workspaceId={workspace.id} onCreated={onCreated} onCancel={onCreateCancel} />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
-      {jobs.length === 0 ? (
-        <p className="text-sm text-slate-500">
-          {filter === "All" ? "No job openings yet." : `No ${filter.toLowerCase()} jobs.`}
-        </p>
-      ) : (
-        <ul className="flex flex-col divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
-          {jobs.map((job) => (
-            <li key={job.id}>
-              <Link
-                href={`/workspaces/${workspace.id}/jobs/${job.id}`}
-                className="flex items-center justify-between gap-4 px-4 py-3 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-500"
-              >
-                <div>
-                  <p className="text-sm font-medium text-slate-950">{job.title}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    Updated {new Date(job.updatedAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <JobStatusBadge status={job.status} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      <AnimatePresence mode="wait">
+        <motion.div key={filter + jobs.length} variants={fadeIn} initial="hidden" animate="show" exit="exit">
+          {jobs.length === 0 ? (
+            <EmptyState
+              title={filter === "All" ? "No job openings yet" : `No ${filter.toLowerCase()} jobs`}
+              description={
+                canManage
+                  ? "Create a job opening to start building a candidate pipeline."
+                  : undefined
+              }
+            />
+          ) : (
+            <motion.ul
+              initial="hidden"
+              animate="show"
+              variants={staggerContainer}
+              className="flex flex-col divide-y divide-border rounded-lg border border-border bg-surface"
+            >
+              {jobs.map((job) => (
+                <motion.li key={job.id} variants={staggerItem}>
+                  <Link
+                    href={`/workspaces/${workspace.id}/jobs/${job.id}`}
+                    className="flex items-center justify-between gap-4 px-4 py-3 transition hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{job.title}</p>
+                      <p className="mt-0.5 text-xs text-text-muted">
+                        Updated {new Date(job.updatedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <JobStatusBadge status={job.status} />
+                  </Link>
+                </motion.li>
+              ))}
+            </motion.ul>
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </Reveal>
   );
 }
 
@@ -256,9 +261,9 @@ function CreateJobPanel({
   onCancel: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-950">New job</h2>
-      <p className="mt-1 text-sm text-slate-500">New jobs start as Draft.</p>
+    <Card className="p-4">
+      <h2 className="text-sm font-semibold text-text-primary">New job</h2>
+      <p className="mt-1 text-sm text-text-muted">New jobs start as Draft.</p>
       <div className="mt-4">
         <JobDetailsForm
           submitLabel="Create job"
@@ -280,6 +285,6 @@ function CreateJobPanel({
           }}
         />
       </div>
-    </div>
+    </Card>
   );
 }

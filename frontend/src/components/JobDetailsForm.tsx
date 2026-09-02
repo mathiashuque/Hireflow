@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 
 type JobDetailsFormProps = {
   initialTitle?: string;
@@ -43,14 +45,14 @@ export function JobDetailsForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex w-full max-w-xl flex-col gap-4">
-      {formError ? (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+      <AnimatedStatus id={formError}>
+        <StatusBanner tone="danger" role="alert">
           {formError}
-        </p>
-      ) : null}
+        </StatusBanner>
+      </AnimatedStatus>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="jobTitle" className="text-sm font-medium text-slate-800">
+        <label htmlFor="jobTitle" className="text-sm font-medium text-text-primary">
           Title
         </label>
         <input
@@ -61,18 +63,18 @@ export function JobDetailsForm({
           disabled={isSubmitting}
           aria-invalid={titleError ? true : undefined}
           aria-describedby={titleError ? "jobTitle-error" : undefined}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+          className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand-soft disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
         />
         {titleError ? (
-          <p id="jobTitle-error" role="alert" className="text-sm text-red-600">
+          <p id="jobTitle-error" role="alert" className="text-sm text-danger-text">
             {titleError}
           </p>
         ) : null}
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="jobDescription" className="text-sm font-medium text-slate-800">
-          Description <span className="font-normal text-slate-400">(optional)</span>
+        <label htmlFor="jobDescription" className="text-sm font-medium text-text-primary">
+          Description <span className="font-normal text-text-muted">(optional)</span>
         </label>
         <textarea
           id="jobDescription"
@@ -80,27 +82,18 @@ export function JobDetailsForm({
           onChange={(event) => setDescription(event.target.value)}
           disabled={isSubmitting}
           rows={6}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+          className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand-soft disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
         />
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-400"
-        >
+        <Button type="submit" variant="primary" disabled={isSubmitting}>
           {isSubmitting ? submittingLabel : submitLabel}
-        </button>
+        </Button>
         {onCancel ? (
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isSubmitting}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-          >
+          <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
             Cancel
-          </button>
+          </Button>
         ) : null}
       </div>
     </form>

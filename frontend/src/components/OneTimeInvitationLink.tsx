@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { CreatedInvitation } from "@/lib/api/workspaces";
+import { Button } from "@/components/ui/Button";
+import { Reveal } from "@/components/motion/Reveal";
 
 type OneTimeInvitationLinkProps = {
   invitation: CreatedInvitation;
@@ -23,34 +25,26 @@ export function OneTimeInvitationLink({ invitation, onDismiss }: OneTimeInvitati
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-4">
+    <Reveal variant="fade" className="flex flex-col gap-3 rounded-lg border border-brand/25 bg-brand-soft px-4 py-4">
       <div>
-        <p className="text-sm font-semibold text-slate-950">Invitation created for {invitation.email}</p>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="text-sm font-semibold text-text-primary">Invitation created for {invitation.email}</p>
+        <p className="mt-1 text-sm text-text-secondary">
           Copy this link and send it to them yourself — it will not be shown again.
         </p>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <code className="flex-1 overflow-x-auto rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800">
+        <code className="flex-1 overflow-x-auto rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text-secondary">
           {link}
         </code>
-        <button
-          type="button"
-          onClick={() => void handleCopy()}
-          className="shrink-0 rounded-lg bg-slate-900 px-3 py-2 text-xs font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-        >
+        <Button variant="primary" size="sm" className="shrink-0" onClick={() => void handleCopy()}>
           {copied ? "Copied" : "Copy link"}
-        </button>
+        </Button>
       </div>
 
-      <button
-        type="button"
-        onClick={onDismiss}
-        className="self-start text-xs font-medium text-indigo-600 hover:underline"
-      >
+      <button type="button" onClick={onDismiss} className="self-start text-xs font-medium text-brand hover:underline">
         Done
       </button>
-    </div>
+    </Reveal>
   );
 }

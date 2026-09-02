@@ -17,6 +17,12 @@ import {
 } from "@/lib/api/jobs";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
 import { JobDetailsForm } from "@/components/JobDetailsForm";
+import { AppShell } from "@/components/shell/AppShell";
+import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
+import { Button } from "@/components/ui/Button";
+import { SkeletonBlock } from "@/components/ui/Skeleton";
+import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
+import { Reveal } from "@/components/motion/Reveal";
 
 type PageState =
   | { status: "loading" }
@@ -91,9 +97,9 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
 
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6">
-        <p className="text-sm text-slate-500">Loading your account…</p>
-      </main>
+      <AppShell>
+        <SkeletonBlock label="Loading your account…" />
+      </AppShell>
     );
   }
 
@@ -161,26 +167,25 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-8 sm:px-10">
-      <nav className="flex items-center justify-between">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-slate-950">
-          Hireflow
-        </Link>
-        <Link href={`/workspaces/${workspaceId}/jobs`} className="text-sm font-medium text-indigo-600 hover:underline">
-          Back to jobs
-        </Link>
-      </nav>
+    <AppShell>
+      <Breadcrumbs
+        items={[
+          { label: "Workspace", href: `/workspaces/${workspaceId}` },
+          { label: "Jobs", href: `/workspaces/${workspaceId}/jobs` },
+          { label: state.status === "ready" ? state.job.title : "Job" },
+        ]}
+      />
 
-      <section className="flex-1 py-12">
-        {state.status === "loading" && <p className="text-sm text-slate-500">Loading job…</p>}
+      <div className="mt-6">
+        {state.status === "loading" && <SkeletonBlock label="Loading job…" />}
 
         {state.status === "not-found" && (
           <div className="max-w-md">
-            <h1 className="text-xl font-semibold text-slate-950">Job unavailable</h1>
-            <p className="mt-2 text-sm text-slate-600">
+            <h1 className="text-xl font-semibold text-text-primary">Job unavailable</h1>
+            <p className="mt-2 text-sm text-text-secondary">
               This job doesn&apos;t exist, or you don&apos;t have access to it.
             </p>
-            <Link href={`/workspaces/${workspaceId}/jobs`} className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline">
+            <Link href={`/workspaces/${workspaceId}/jobs`} className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
               Back to jobs
             </Link>
           </div>
@@ -188,18 +193,14 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
 
         {(state.status === "unavailable" || state.status === "error") && (
           <div className="flex max-w-md flex-col items-start gap-3">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-text-secondary">
               {state.status === "unavailable"
                 ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
                 : "Something went wrong loading this job."}
             </p>
-            <button
-              type="button"
-              onClick={retry}
-              className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-            >
+            <Button variant="primary" size="sm" onClick={retry}>
               Try again
-            </button>
+            </Button>
           </div>
         )}
 
@@ -217,8 +218,8 @@ export default function JobDetailPage(props: PageProps<"/workspaces/[workspaceId
             onStatusChange={handleStatusChange}
           />
         )}
-      </section>
-    </main>
+      </div>
+    </AppShell>
   );
 }
 
@@ -246,18 +247,18 @@ function JobDetail({
   onStatusChange: (target: "Open" | "Closed") => void;
 }) {
   return (
-    <div className="flex flex-col gap-8">
-      {conflictMessage ? (
-        <p role="alert" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+    <Reveal className="flex flex-col gap-8">
+      <AnimatedStatus id={conflictMessage}>
+        <StatusBanner tone="warning" role="alert">
           {conflictMessage}
-        </p>
-      ) : null}
+        </StatusBanner>
+      </AnimatedStatus>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <JobStatusBadge status={job.status} />
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{job.title}</h1>
-          <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-text-primary">{job.title}</h1>
+          <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
             <div>
               <dt className="inline font-medium">Created</dt> <dd className="inline">{new Date(job.createdAt).toLocaleString()}</dd>
             </div>
@@ -275,30 +276,26 @@ function JobDetail({
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/workspaces/${job.workspaceId}/jobs/${job.id}/candidates`}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+            className="rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             Candidates
           </Link>
           {canManage && !isEditing ? (
             <>
-              <button
-                type="button"
-                onClick={onEdit}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-              >
+              <Button size="sm" onClick={onEdit}>
                 Edit
-              </button>
+              </Button>
               <StatusActions status={job.status} disabled={isChangingStatus} onChange={onStatusChange} />
             </>
           ) : null}
         </div>
       </div>
 
-      {statusError ? (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+      <AnimatedStatus id={statusError}>
+        <StatusBanner tone="danger" role="alert">
           {statusError}
-        </p>
-      ) : null}
+        </StatusBanner>
+      </AnimatedStatus>
 
       {isEditing ? (
         <JobDetailsForm
@@ -310,13 +307,13 @@ function JobDetail({
           onSubmit={onSaveEdit}
         />
       ) : job.description ? (
-        <p className="max-w-2xl whitespace-pre-wrap text-sm text-slate-700">{job.description}</p>
+        <p className="max-w-2xl whitespace-pre-wrap text-sm text-text-secondary">{job.description}</p>
       ) : (
-        <p className="text-sm text-slate-400">No description.</p>
+        <p className="text-sm text-text-muted">No description.</p>
       )}
 
-      {!canManage ? <p className="text-xs text-slate-400">You have read-only access to this job.</p> : null}
-    </div>
+      {!canManage ? <p className="text-xs text-text-muted">You have read-only access to this job.</p> : null}
+    </Reveal>
   );
 }
 
@@ -331,38 +328,23 @@ function StatusActions({
 }) {
   if (status === "Draft") {
     return (
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => onChange("Open")}
-        className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <Button variant="primary" size="sm" disabled={disabled} onClick={() => onChange("Open")}>
         Open
-      </button>
+      </Button>
     );
   }
 
   if (status === "Open") {
     return (
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => onChange("Closed")}
-        className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <Button variant="danger" size="sm" disabled={disabled} onClick={() => onChange("Closed")}>
         Close
-      </button>
+      </Button>
     );
   }
 
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => onChange("Open")}
-      className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-    >
+    <Button size="sm" disabled={disabled} onClick={() => onChange("Open")}>
       Reopen
-    </button>
+    </Button>
   );
 }

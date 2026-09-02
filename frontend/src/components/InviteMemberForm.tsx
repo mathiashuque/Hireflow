@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { FormField } from "@/components/FormField";
+import { Button } from "@/components/ui/Button";
+import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
 import { createInvitation, type CreatedInvitation, type InvitableRole } from "@/lib/api/workspaces";
 
@@ -43,11 +45,11 @@ export function InviteMemberForm({ workspaceId, onCreated }: InviteMemberFormPro
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex w-full max-w-sm flex-col gap-4">
-      {formError ? (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+      <AnimatedStatus id={formError}>
+        <StatusBanner tone="danger" role="alert">
           {formError}
-        </p>
-      ) : null}
+        </StatusBanner>
+      </AnimatedStatus>
 
       <FormField
         id="inviteEmail"
@@ -61,7 +63,7 @@ export function InviteMemberForm({ workspaceId, onCreated }: InviteMemberFormPro
       />
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="inviteRole" className="text-sm font-medium text-slate-800">
+        <label htmlFor="inviteRole" className="text-sm font-medium text-text-primary">
           Role
         </label>
         <select
@@ -69,20 +71,16 @@ export function InviteMemberForm({ workspaceId, onCreated }: InviteMemberFormPro
           value={role}
           onChange={(event) => setRole(event.target.value as InvitableRole)}
           disabled={isSubmitting}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+          className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand-soft disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
         >
           <option value="Recruiter">Recruiter</option>
           <option value="Interviewer">Interviewer</option>
         </select>
       </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="mt-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-400"
-      >
+      <Button type="submit" variant="primary" disabled={isSubmitting} className="mt-2">
         {isSubmitting ? "Sending invitation…" : "Invite"}
-      </button>
+      </Button>
     </form>
   );
 }

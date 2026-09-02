@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import { revokeInvitation, type PendingInvitation } from "@/lib/api/workspaces";
+import { Button } from "@/components/ui/Button";
+import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { staggerContainer, staggerItem } from "@/lib/motion";
 
 type PendingInvitationsListProps = {
   workspaceId: string;
@@ -28,42 +33,52 @@ export function PendingInvitationsList({ workspaceId, invitations, onRevoked }: 
   }
 
   if (invitations.length === 0) {
-    return <p className="text-sm text-slate-500">No pending invitations.</p>;
+    return <EmptyState title="No pending invitations" />;
   }
 
   return (
     <div className="flex flex-col gap-2">
-      {error ? (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+      <AnimatedStatus id={error}>
+        <StatusBanner tone="danger" role="alert">
           {error}
-        </p>
-      ) : null}
+        </StatusBanner>
+      </AnimatedStatus>
 
-      <ul className="flex flex-col divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+      <motion.ul
+        layout
+        initial="hidden"
+        animate="show"
+        variants={staggerContainer}
+        className="flex flex-col divide-y divide-border rounded-lg border border-border bg-surface"
+      >
         {invitations.map((invitation) => {
           const isExpired = new Date(invitation.expiresAt).getTime() <= now;
 
           return (
-            <li key={invitation.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+            <motion.li
+              key={invitation.id}
+              layout
+              variants={staggerItem}
+              className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
+            >
               <div>
-                <p className="text-sm text-slate-900">{invitation.email}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-sm text-text-primary">{invitation.email}</p>
+                <p className="text-xs text-text-muted">
                   {invitation.role} · invited by {invitation.invitedByDisplayName} ·{" "}
                   {isExpired ? "expired" : `expires ${new Date(invitation.expiresAt).toLocaleDateString()}`}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => void handleRevoke(invitation.id)}
+              <Button
+                size="sm"
                 disabled={revokingId === invitation.id}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => void handleRevoke(invitation.id)}
               >
                 {revokingId === invitation.id ? "Revoking…" : "Revoke"}
-              </button>
-            </li>
+              </Button>
+            </motion.li>
           );
         })}
-      </ul>
+      </motion.ul>
     </div>
   );
 }

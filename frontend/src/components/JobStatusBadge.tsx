@@ -1,9 +1,9 @@
 import type { JobStatus } from "@/lib/api/jobs";
 
 const STYLES: Record<JobStatus, string> = {
-  Draft: "bg-slate-100 text-slate-700",
-  Open: "bg-emerald-50 text-emerald-700",
-  Closed: "bg-slate-100 text-slate-500",
+  Draft: "bg-surface-muted text-text-secondary",
+  Open: "bg-success-soft text-success-text",
+  Closed: "bg-surface-muted text-text-muted",
 };
 
 export function JobStatusBadge({ status }: { status: JobStatus }) {

@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import { ApiError } from "@/lib/api/client";
 import { changeMemberRole, removeMember, type WorkspaceMember, type WorkspaceRole } from "@/lib/api/workspaces";
+import { Button } from "@/components/ui/Button";
+import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
+import { staggerContainer, staggerItem } from "@/lib/motion";
 
 type MembersListProps = {
   workspaceId: string;
@@ -51,22 +55,33 @@ export function MembersList({ workspaceId, members, currentUserId, canManage, on
 
   return (
     <div className="flex flex-col gap-2">
-      {error ? (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+      <AnimatedStatus id={error}>
+        <StatusBanner tone="danger" role="alert">
           {error}
-        </p>
-      ) : null}
+        </StatusBanner>
+      </AnimatedStatus>
 
-      <ul className="flex flex-col divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+      <motion.ul
+        layout
+        initial="hidden"
+        animate="show"
+        variants={staggerContainer}
+        className="flex flex-col divide-y divide-border rounded-lg border border-border bg-surface"
+      >
         {members.map((member) => {
           const isLastOwner = member.role === "Owner" && ownerCount <= 1;
           const isPending = pendingUserId === member.userId;
 
           return (
-            <li key={member.userId} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <motion.li
+              key={member.userId}
+              layout
+              variants={staggerItem}
+              className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+            >
               <div>
-                <span className="text-sm text-slate-900">{member.displayName}</span>
-                {member.userId === currentUserId ? <span className="ml-2 text-xs text-slate-400">(you)</span> : null}
+                <span className="text-sm text-text-primary">{member.displayName}</span>
+                {member.userId === currentUserId ? <span className="ml-2 text-xs text-text-muted">(you)</span> : null}
               </div>
 
               {canManage ? (
@@ -80,7 +95,7 @@ export function MembersList({ workspaceId, members, currentUserId, canManage, on
                     disabled={isPending || isLastOwner}
                     onChange={(event) => void handleRoleChange(member.userId, event.target.value as WorkspaceRole)}
                     title={isLastOwner ? "A workspace must always have at least one Owner." : undefined}
-                    className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                    className="rounded-lg border border-border-strong bg-surface px-2 py-1 text-xs text-text-primary outline-none transition focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand-soft disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
                   >
                     {ROLES.map((role) => (
                       <option key={role} value={role}>
@@ -88,23 +103,23 @@ export function MembersList({ workspaceId, members, currentUserId, canManage, on
                       </option>
                     ))}
                   </select>
-                  <button
-                    type="button"
-                    onClick={() => void handleRemove(member.userId, member.displayName)}
+                  <Button
+                    variant="danger"
+                    size="sm"
                     disabled={isPending || isLastOwner}
                     title={isLastOwner ? "A workspace must always have at least one Owner." : undefined}
-                    className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => void handleRemove(member.userId, member.displayName)}
                   >
                     Remove
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <span className="text-xs uppercase tracking-wide text-slate-500">{member.role}</span>
+                <span className="text-xs uppercase tracking-wide text-text-muted">{member.role}</span>
               )}
-            </li>
+            </motion.li>
           );
         })}
-      </ul>
+      </motion.ul>
     </div>
   );
 }

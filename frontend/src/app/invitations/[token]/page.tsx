@@ -3,9 +3,14 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { AnimatePresence, motion } from "motion/react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiUnavailableError } from "@/lib/api/client";
 import { acceptInvitation } from "@/lib/api/workspaces";
+import { PublicShell } from "@/components/shell/PublicShell";
+import { Button } from "@/components/ui/Button";
+import { SkeletonBlock } from "@/components/ui/Skeleton";
+import { fadeIn } from "@/lib/motion";
 
 type AcceptState =
   | { status: "accepting" }
@@ -58,41 +63,48 @@ export default function InvitationAcceptPage(props: PageProps<"/invitations/[tok
 
   if (authStatus === "loading" || authStatus === "unauthenticated") {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6">
-        <p className="text-sm text-slate-500">Loading your account…</p>
-      </main>
+      <PublicShell maxWidth="md">
+        <div className="flex flex-1 items-center justify-center py-16">
+          <SkeletonBlock label="Loading your account…" className="w-full max-w-sm" />
+        </div>
+      </PublicShell>
     );
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-6 text-center">
-      <Link href="/" className="text-lg font-semibold tracking-tight text-slate-950">
-        Hireflow
-      </Link>
-
-      <InvitationContent state={state} onRetry={retry} />
-    </main>
+    <PublicShell maxWidth="md">
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 py-16 text-center">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={state.status}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            variants={fadeIn}
+            className="flex w-full flex-col items-center"
+          >
+            <InvitationContent state={state} onRetry={retry} />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </PublicShell>
   );
 }
 
 function InvitationContent({ state, onRetry }: { state: AcceptState; onRetry: () => void }) {
   if (state.status === "accepting") {
-    return <p className="text-sm text-slate-500">Accepting your invitation…</p>;
+    return <SkeletonBlock label="Accepting your invitation…" className="w-full max-w-sm" />;
   }
 
   if (state.status === "unavailable") {
     return (
       <div className="flex max-w-sm flex-col items-center gap-3">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-text-secondary">
           Hireflow can&apos;t reach the API right now. Check that the backend is running and try again.
         </p>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-        >
+        <Button variant="primary" onClick={onRetry}>
           Try again
-        </button>
+        </Button>
       </div>
     );
   }
@@ -100,12 +112,12 @@ function InvitationContent({ state, onRetry }: { state: AcceptState; onRetry: ()
   if (state.status === "invalid") {
     return (
       <div className="max-w-sm">
-        <h1 className="text-xl font-semibold text-slate-950">This invitation isn&apos;t available</h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <h1 className="text-xl font-semibold text-text-primary">This invitation isn&apos;t available</h1>
+        <p className="mt-2 text-sm text-text-secondary">
           The link may be invalid, expired, already used, or meant for a different account. Ask
           whoever invited you to send a new one if needed.
         </p>
-        <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline">
+        <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
           Go to your dashboard
         </Link>
       </div>
@@ -114,11 +126,11 @@ function InvitationContent({ state, onRetry }: { state: AcceptState; onRetry: ()
 
   return (
     <div className="max-w-sm">
-      <h1 className="text-xl font-semibold text-slate-950">You&apos;re in</h1>
-      <p className="mt-2 text-sm text-slate-600">You&apos;ve joined the workspace.</p>
+      <h1 className="text-xl font-semibold text-text-primary">You&apos;re in</h1>
+      <p className="mt-2 text-sm text-text-secondary">You&apos;ve joined the workspace.</p>
       <Link
         href={`/workspaces/${state.workspaceId}`}
-        className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+        className="mt-4 inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
         Go to the workspace
       </Link>
