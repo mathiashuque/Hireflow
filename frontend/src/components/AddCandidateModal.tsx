@@ -5,6 +5,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { CandidateDetailsForm } from "@/components/CandidateDetailsForm";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
 import { createCandidate, isDuplicateEmailConflict, isJobNotOpenConflict } from "@/lib/api/candidates";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 type AddCandidateModalProps = {
   open: boolean;
@@ -16,19 +17,20 @@ type AddCandidateModalProps = {
 
 /** Wraps the existing add-candidate form/API/error behavior in an accessible dialog. */
 export function AddCandidateModal({ open, workspaceId, jobId, onClose, onAdded }: AddCandidateModalProps) {
+  const { dict } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      title="Add candidate"
-      description="New candidates start in the Applied stage."
+      title={dict.candidates.addCandidateModalTitle}
+      description={dict.candidates.addCandidateModalDescription}
       preventClose={isSubmitting}
     >
       <CandidateDetailsForm
-        submitLabel="Add candidate"
-        submittingLabel="Adding…"
+        submitLabel={dict.candidates.addCandidateSubmit}
+        submittingLabel={dict.candidates.addCandidateSubmitting}
         onCancel={onClose}
         onSubmittingChange={setIsSubmitting}
         onSubmit={async ({ name, email }) => {
@@ -40,15 +42,15 @@ export function AddCandidateModal({ open, workspaceId, jobId, onClose, onAdded }
               throw error;
             }
             if (isJobNotOpenConflict(error)) {
-              throw new Error("This job is no longer open. Refresh the page to see its current status.");
+              throw new Error(dict.candidates.jobNotOpen);
             }
             if (isDuplicateEmailConflict(error)) {
-              throw new Error("A candidate with this email already exists for this job.");
+              throw new Error(dict.candidates.duplicateEmail);
             }
             if (error instanceof ApiError) {
-              throw new Error(error.fieldErrors.Name?.[0] ?? error.message);
+              throw new Error(error.fieldErrors.Name?.[0] ?? dict.errors.validation_error);
             }
-            throw new Error("Something went wrong. Please try again.");
+            throw new Error(dict.common.genericError);
           }
         }}
       />

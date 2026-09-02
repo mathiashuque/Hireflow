@@ -28,6 +28,8 @@ import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { Reveal } from "@/components/motion/Reveal";
 import { staggerContainer, staggerItem } from "@/lib/motion";
+import { useI18n } from "@/i18n/LocaleProvider";
+import { candidateStageLabel } from "@/i18n/enumLabels";
 
 type PageState =
   | { status: "loading" }
@@ -36,10 +38,11 @@ type PageState =
   | { status: "error" }
   | { status: "ready"; workspace: WorkspaceDetail; job: JobOpening; candidates: Candidate[] };
 
-export default function JobCandidatesPage(props: PageProps<"/workspaces/[workspaceId]/jobs/[jobId]/candidates">) {
+export default function JobCandidatesPage(props: PageProps<"/[lang]/workspaces/[workspaceId]/jobs/[jobId]/candidates">) {
   const { workspaceId, jobId } = use(props.params);
   const { status: authStatus, user } = useAuth();
   const router = useRouter();
+  const { dict, href } = useI18n();
   const [state, setState] = useState<PageState>({ status: "loading" });
   const [showAddModal, setShowAddModal] = useState(false);
   const [moveNotice, setMoveNotice] = useState<string | null>(null);
@@ -78,9 +81,9 @@ export default function JobCandidatesPage(props: PageProps<"/workspaces/[workspa
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
-      router.replace("/login");
+      router.replace(href("/login"));
     }
-  }, [authStatus, router]);
+  }, [authStatus, router, href]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") {
@@ -102,7 +105,7 @@ export default function JobCandidatesPage(props: PageProps<"/workspaces/[workspa
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
       <AppShell maxWidth="2xl">
-        <SkeletonBlock label="Loading your account…" />
+        <SkeletonBlock label={dict.nav.loadingAccount} />
       </AppShell>
     );
   }
@@ -117,17 +120,17 @@ export default function JobCandidatesPage(props: PageProps<"/workspaces/[workspa
         throw error;
       }
       if (isNoOpStageConflict(error)) {
-        throw new Error("The candidate is already in this stage.");
+        throw new Error(dict.jobs.moveCandidateAlreadyInStage);
       }
       if (isConcurrencyConflict(error)) {
-        setMoveNotice(`${candidate.name} was changed by someone else. The board has been refreshed.`);
+        setMoveNotice(dict.jobs.moveNotice(candidate.name));
         refresh();
         return;
       }
       if (error instanceof ApiError && error.status === 403) {
-        throw new Error("You don't have permission to move this candidate.");
+        throw new Error(dict.jobs.movePermissionDenied);
       }
-      throw new Error("Something went wrong moving this candidate. Please try again.");
+      throw new Error(dict.jobs.moveFailed);
     }
   }
 
@@ -135,10 +138,13 @@ export default function JobCandidatesPage(props: PageProps<"/workspaces/[workspa
     <AppShell maxWidth="2xl">
       <Breadcrumbs
         items={[
-          { label: "Workspace", href: `/workspaces/${workspaceId}` },
-          { label: "Jobs", href: `/workspaces/${workspaceId}/jobs` },
-          { label: state.status === "ready" ? state.job.title : "Job", href: `/workspaces/${workspaceId}/jobs/${jobId}` },
-          { label: "Candidates" },
+          { label: dict.nav.workspaceOverview, href: href(`/workspaces/${workspaceId}`) },
+          { label: dict.nav.workspaceJobs, href: href(`/workspaces/${workspaceId}/jobs`) },
+          {
+            label: state.status === "ready" ? state.job.title : dict.jobs.newJob,
+            href: href(`/workspaces/${workspaceId}/jobs/${jobId}`),
+          },
+          { label: dict.jobs.candidatesLink },
         ]}
       />
 
@@ -181,19 +187,19 @@ function BoardContent({
   onAddClick: () => void;
   onMove: (candidate: Candidate, target: CandidateStage) => Promise<void>;
 }) {
+  const { dict, href } = useI18n();
+
   if (state.status === "loading") {
-    return <SkeletonBlock label="Loading candidates…" />;
+    return <SkeletonBlock label={dict.candidates.loadingCandidates} />;
   }
 
   if (state.status === "not-found") {
     return (
       <div className="max-w-md">
-        <h1 className="text-xl font-semibold text-text-primary">Job unavailable</h1>
-        <p className="mt-2 text-sm text-text-secondary">
-          This job doesn&apos;t exist, or you don&apos;t have access to it.
-        </p>
-        <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
-          Back to your workspaces
+        <h1 className="text-xl font-semibold text-text-primary">{dict.jobs.unavailableTitle}</h1>
+        <p className="mt-2 text-sm text-text-secondary">{dict.jobs.unavailableDescription}</p>
+        <Link href={href("/dashboard")} className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
+          {dict.jobs.backToWorkspaces}
         </Link>
       </div>
     );
@@ -203,12 +209,10 @@ function BoardContent({
     return (
       <div className="flex max-w-md flex-col items-start gap-3">
         <p className="text-sm text-text-secondary">
-          {state.status === "unavailable"
-            ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
-            : "Something went wrong loading candidates."}
+          {state.status === "unavailable" ? dict.common.apiUnavailable : dict.jobs.loadFailedCandidates}
         </p>
         <Button variant="primary" size="sm" onClick={onRetry}>
-          Try again
+          {dict.common.tryAgain}
         </Button>
       </div>
     );
@@ -227,11 +231,11 @@ function BoardContent({
     <Reveal className="flex flex-col gap-8">
       <PageHeader
         title={job.title}
-        description="Hiring board for this job"
+        description={dict.jobs.boardDescription}
         actions={
           canManage ? (
             <Button variant="primary" size="sm" disabled={!canAdd} onClick={onAddClick}>
-              Add candidate
+              {dict.jobs.addCandidate}
             </Button>
           ) : undefined
         }
@@ -246,28 +250,26 @@ function BoardContent({
 
       {canManage && !canAdd ? (
         <p className="text-sm text-warning-text">
-          {job.status === "Draft"
-            ? "This job is still a Draft. Open it before adding candidates."
-            : "This job is Closed. Reopen it to add new candidates; existing candidates can still be moved and edited."}
+          {job.status === "Draft" ? dict.jobs.draftNotice : dict.jobs.closedNotice}
         </p>
       ) : null}
 
-      <div role="group" aria-label="Hiring pipeline board" className="flex gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-5 sm:overflow-visible">
+      <div role="group" aria-label={dict.a11y.pipelineBoard} className="flex gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-5 sm:overflow-visible">
         {columns.map(({ stage, candidates: stageCandidates }) => (
           <div
             key={stage}
-            aria-label={`${stage}, ${stageCandidates.length} candidate${stageCandidates.length === 1 ? "" : "s"}`}
+            aria-label={dict.jobs.stageColumnLabel(candidateStageLabel(dict, stage), stageCandidates.length)}
             className="flex w-64 shrink-0 flex-col gap-3 rounded-lg border border-border bg-surface-muted p-3 sm:w-auto"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-text-primary">{stage}</h2>
+              <h2 className="text-sm font-semibold text-text-primary">{candidateStageLabel(dict, stage)}</h2>
               <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-text-secondary ring-1 ring-border">
                 {stageCandidates.length}
               </span>
             </div>
 
             {stageCandidates.length === 0 ? (
-              <p className="text-xs text-text-muted">No candidates.</p>
+              <p className="text-xs text-text-muted">{dict.jobs.noCandidatesInStage}</p>
             ) : (
               <motion.ul initial="hidden" animate="show" variants={staggerContainer} layout className="flex flex-col gap-2">
                 {stageCandidates.map((candidate) => (
@@ -278,7 +280,7 @@ function BoardContent({
                     className="rounded-lg border border-border bg-surface p-3"
                   >
                     <Link
-                      href={`/workspaces/${workspace.id}/candidates/${candidate.id}`}
+                      href={href(`/workspaces/${workspace.id}/candidates/${candidate.id}`)}
                       className="text-sm font-medium text-text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                     >
                       {candidate.name}
@@ -287,7 +289,7 @@ function BoardContent({
                       <div className="mt-2">
                         <CandidateStageMoveControl
                           currentStage={candidate.stage}
-                          labelPrefix={`Move ${candidate.name} to`}
+                          labelPrefix={dict.candidates.movePrefix(candidate.name)}
                           onMove={(target) => onMove(candidate, target)}
                         />
                       </div>
@@ -300,7 +302,7 @@ function BoardContent({
         ))}
       </div>
 
-      {!canManage ? <p className="text-xs text-text-muted">You have read-only access to this job&apos;s candidates.</p> : null}
+      {!canManage ? <p className="text-xs text-text-muted">{dict.jobs.readOnlyCandidatesNotice}</p> : null}
     </Reveal>
   );
 }

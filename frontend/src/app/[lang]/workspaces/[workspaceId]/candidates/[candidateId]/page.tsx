@@ -33,6 +33,8 @@ import { Button } from "@/components/ui/Button";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { Reveal } from "@/components/motion/Reveal";
+import { useI18n } from "@/i18n/LocaleProvider";
+import type { Dictionary } from "@/i18n/dictionaries";
 
 type PageState =
   | { status: "loading" }
@@ -47,10 +49,11 @@ type PageState =
       notes: CandidateNote[];
     };
 
-export default function CandidateDetailPage(props: PageProps<"/workspaces/[workspaceId]/candidates/[candidateId]">) {
+export default function CandidateDetailPage(props: PageProps<"/[lang]/workspaces/[workspaceId]/candidates/[candidateId]">) {
   const { workspaceId, candidateId } = use(props.params);
   const { status: authStatus, user } = useAuth();
   const router = useRouter();
+  const { dict, href, formatDateTime } = useI18n();
   const [state, setState] = useState<PageState>({ status: "loading" });
   const [isEditing, setIsEditing] = useState(false);
   const [conflictMessage, setConflictMessage] = useState<string | null>(null);
@@ -98,9 +101,9 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
-      router.replace("/login");
+      router.replace(href("/login"));
     }
-  }, [authStatus, router]);
+  }, [authStatus, router, href]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") {
@@ -122,7 +125,7 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
       <AppShell maxWidth="xl">
-        <SkeletonBlock label="Loading your account…" />
+        <SkeletonBlock label={dict.nav.loadingAccount} />
       </AppShell>
     );
   }
@@ -143,20 +146,20 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
       setIsEditing(false);
     } catch (error) {
       if (isConcurrencyConflict(error)) {
-        setConflictMessage("This candidate was changed by someone else. The latest version is now shown below — please redo your edit.");
+        setConflictMessage(dict.candidates.conflictEdit);
         refresh();
         return;
       }
       if (isDuplicateEmailConflict(error)) {
-        throw new Error("A candidate with this email already exists for this job.");
+        throw new Error(dict.candidates.duplicateEmail);
       }
       if (error instanceof ApiUnavailableError) {
         throw error;
       }
       if (error instanceof ApiError) {
-        throw new Error(error.fieldErrors.Name?.[0] ?? error.message);
+        throw new Error(error.fieldErrors.Name?.[0] ?? dict.errors.validation_error);
       }
-      throw new Error("Something went wrong. Please try again.");
+      throw new Error(dict.common.genericError);
     }
   }
 
@@ -171,10 +174,10 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
       refresh();
     } catch (error) {
       if (isNoOpStageConflict(error)) {
-        throw new Error("The candidate is already in this stage.");
+        throw new Error(dict.candidates.moveAlreadyInStage);
       }
       if (isConcurrencyConflict(error)) {
-        setConflictMessage("This candidate was changed by someone else. The latest version is now shown below.");
+        setConflictMessage(dict.candidates.conflictStage);
         refresh();
         return;
       }
@@ -182,9 +185,9 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
         throw error;
       }
       if (error instanceof ApiError && error.status === 403) {
-        throw new Error("You don't have permission to move this candidate.");
+        throw new Error(dict.candidates.movePermissionDenied);
       }
-      throw new Error("Something went wrong moving this candidate. Please try again.");
+      throw new Error(dict.candidates.moveFailed);
     }
   }
 
@@ -203,37 +206,35 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
         throw error;
       }
       if (error instanceof ApiError) {
-        throw new Error(error.fieldErrors.Content?.[0] ?? error.message);
+        throw new Error(error.fieldErrors.Content?.[0] ?? dict.errors.validation_error);
       }
-      throw new Error("Something went wrong adding this note. Please try again.");
+      throw new Error(dict.candidates.noteFailed);
     }
   }
 
   const candidatesHref =
-    state.status === "ready" ? `/workspaces/${workspaceId}/jobs/${state.candidate.jobOpeningId}/candidates` : undefined;
+    state.status === "ready" ? href(`/workspaces/${workspaceId}/jobs/${state.candidate.jobOpeningId}/candidates`) : undefined;
 
   return (
     <AppShell maxWidth="xl">
       <Breadcrumbs
         items={[
-          { label: "Workspace", href: `/workspaces/${workspaceId}` },
-          { label: "Jobs", href: `/workspaces/${workspaceId}/jobs` },
-          ...(candidatesHref ? [{ label: "Candidates", href: candidatesHref }] : []),
-          { label: state.status === "ready" ? state.candidate.name : "Candidate" },
+          { label: dict.nav.workspaceOverview, href: href(`/workspaces/${workspaceId}`) },
+          { label: dict.nav.workspaceJobs, href: href(`/workspaces/${workspaceId}/jobs`) },
+          ...(candidatesHref ? [{ label: dict.jobs.candidatesLink, href: candidatesHref }] : []),
+          { label: state.status === "ready" ? state.candidate.name : dict.candidates.unavailableTitle },
         ]}
       />
 
       <div className="mt-6">
-        {state.status === "loading" && <SkeletonBlock label="Loading candidate…" />}
+        {state.status === "loading" && <SkeletonBlock label={dict.candidates.loadingCandidate} />}
 
         {state.status === "not-found" && (
           <div className="max-w-md">
-            <h1 className="text-xl font-semibold text-text-primary">Candidate unavailable</h1>
-            <p className="mt-2 text-sm text-text-secondary">
-              This candidate doesn&apos;t exist, or you don&apos;t have access to it.
-            </p>
-            <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
-              Back to your workspaces
+            <h1 className="text-xl font-semibold text-text-primary">{dict.candidates.unavailableTitle}</h1>
+            <p className="mt-2 text-sm text-text-secondary">{dict.candidates.unavailableDescription}</p>
+            <Link href={href("/dashboard")} className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
+              {dict.jobs.backToWorkspaces}
             </Link>
           </div>
         )}
@@ -241,12 +242,10 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
         {(state.status === "unavailable" || state.status === "error") && (
           <div className="flex max-w-md flex-col items-start gap-3">
             <p className="text-sm text-text-secondary">
-              {state.status === "unavailable"
-                ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
-                : "Something went wrong loading this candidate."}
+              {state.status === "unavailable" ? dict.common.apiUnavailable : dict.candidates.loadFailed}
             </p>
             <Button variant="primary" size="sm" onClick={retry}>
-              Try again
+              {dict.common.tryAgain}
             </Button>
           </div>
         )}
@@ -264,6 +263,8 @@ export default function CandidateDetailPage(props: PageProps<"/workspaces/[works
             onSaveEdit={handleSaveEdit}
             onMoveStage={handleMoveStage}
             onAddNote={handleAddNote}
+            dict={dict}
+            formatDateTime={formatDateTime}
           />
         )}
       </div>
@@ -283,6 +284,8 @@ function CandidateDetail({
   onSaveEdit,
   onMoveStage,
   onAddNote,
+  dict,
+  formatDateTime,
 }: {
   candidate: Candidate;
   canManage: boolean;
@@ -295,6 +298,8 @@ function CandidateDetail({
   onSaveEdit: (input: { name: string; email: string }) => Promise<void>;
   onMoveStage: (target: CandidateStage) => Promise<void>;
   onAddNote: (content: string) => Promise<void>;
+  dict: Dictionary;
+  formatDateTime: (iso: string) => string;
 }) {
   return (
     <Reveal className="flex flex-col gap-8">
@@ -311,17 +316,17 @@ function CandidateDetail({
           <p className="mt-1 text-sm text-text-secondary">{candidate.email}</p>
           <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
             <div>
-              <dt className="inline font-medium">Added</dt> <dd className="inline">{new Date(candidate.createdAt).toLocaleString()}</dd>
+              <dt className="inline font-medium">{dict.candidates.added}</dt> <dd className="inline">{formatDateTime(candidate.createdAt)}</dd>
             </div>
             <div>
-              <dt className="inline font-medium">Updated</dt> <dd className="inline">{new Date(candidate.updatedAt).toLocaleString()}</dd>
+              <dt className="inline font-medium">{dict.candidates.updated}</dt> <dd className="inline">{formatDateTime(candidate.updatedAt)}</dd>
             </div>
           </dl>
         </div>
 
         {canManage && !isEditing ? (
           <Button size="sm" onClick={onEdit}>
-            Edit
+            {dict.candidates.edit}
           </Button>
         ) : null}
       </div>
@@ -330,9 +335,9 @@ function CandidateDetail({
         <div className="flex flex-col gap-6">
           {canManage ? (
             <div>
-              <h2 className="text-sm font-semibold text-text-primary">Move stage</h2>
+              <h2 className="text-sm font-semibold text-text-primary">{dict.candidates.moveStage}</h2>
               <div className="mt-2">
-                <CandidateStageMoveControl currentStage={candidate.stage} labelPrefix="Move candidate to" onMove={onMoveStage} />
+                <CandidateStageMoveControl currentStage={candidate.stage} labelPrefix={dict.candidates.moveCandidatePrefix} onMove={onMoveStage} />
               </div>
             </div>
           ) : null}
@@ -341,17 +346,17 @@ function CandidateDetail({
             <CandidateDetailsForm
               initialName={candidate.name}
               initialEmail={candidate.email}
-              submitLabel="Save changes"
-              submittingLabel="Saving…"
+              submitLabel={dict.candidates.saveChanges}
+              submittingLabel={dict.candidates.savingChanges}
               onCancel={onCancelEdit}
               onSubmit={onSaveEdit}
             />
           ) : null}
 
-          {!canManage ? <p className="text-xs text-text-muted">You have read-only access to this candidate.</p> : null}
+          {!canManage ? <p className="text-xs text-text-muted">{dict.candidates.readOnlyNotice}</p> : null}
 
           <div>
-            <h2 className="text-sm font-semibold text-text-primary">Stage history</h2>
+            <h2 className="text-sm font-semibold text-text-primary">{dict.candidates.stageHistory}</h2>
             <div className="mt-2">
               <CandidateStageHistoryTimeline history={history} />
             </div>
@@ -359,7 +364,7 @@ function CandidateDetail({
         </div>
 
         <div>
-          <h2 className="text-sm font-semibold text-text-primary">Internal notes</h2>
+          <h2 className="text-sm font-semibold text-text-primary">{dict.candidates.internalNotes}</h2>
           <div className="mt-2">
             <CandidateNoteComposer onSubmit={onAddNote} />
           </div>

@@ -4,6 +4,8 @@ import { useId, useState } from "react";
 import { CANDIDATE_STAGES, type CandidateStage } from "@/lib/api/candidates";
 import { Button } from "@/components/ui/Button";
 import { AnimatedStatus } from "@/components/ui/StatusBanner";
+import { useI18n } from "@/i18n/LocaleProvider";
+import { candidateStageLabel } from "@/i18n/enumLabels";
 
 type CandidateStageMoveControlProps = {
   currentStage: CandidateStage;
@@ -14,6 +16,7 @@ type CandidateStageMoveControlProps = {
 
 /** An explicit, keyboard-accessible stage select plus Move button — the required non-drag way to move a candidate. */
 export function CandidateStageMoveControl({ currentStage, disabled, onMove, labelPrefix }: CandidateStageMoveControlProps) {
+  const { dict } = useI18n();
   const selectId = useId();
   const [target, setTarget] = useState<CandidateStage>(currentStage);
   const [isMoving, setIsMoving] = useState(false);
@@ -31,7 +34,7 @@ export function CandidateStageMoveControl({ currentStage, disabled, onMove, labe
     try {
       await onMove(target);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Something went wrong. Please try again.");
+      setError(submitError instanceof Error ? submitError.message : dict.common.genericError);
     } finally {
       setIsMoving(false);
     }
@@ -41,7 +44,7 @@ export function CandidateStageMoveControl({ currentStage, disabled, onMove, labe
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
         <label htmlFor={selectId} className="sr-only">
-          {labelPrefix ? `${labelPrefix} stage` : "Move to stage"}
+          {labelPrefix ? `${labelPrefix} ${dict.candidates.moveStage.toLowerCase()}` : dict.candidates.moveTo}
         </label>
         <select
           id={selectId}
@@ -52,12 +55,12 @@ export function CandidateStageMoveControl({ currentStage, disabled, onMove, labe
         >
           {CANDIDATE_STAGES.map((stage) => (
             <option key={stage} value={stage}>
-              {stage}
+              {candidateStageLabel(dict, stage)}
             </option>
           ))}
         </select>
         <Button size="sm" variant="primary" disabled={disabled || isMoving || isNoOp} onClick={handleMove}>
-          {isMoving ? "Moving…" : "Move"}
+          {isMoving ? dict.candidates.moving : dict.candidates.move}
         </Button>
       </div>
       <AnimatedStatus id={error}>

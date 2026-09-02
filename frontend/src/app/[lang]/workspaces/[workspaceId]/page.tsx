@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton, SkeletonBlock } from "@/components/ui/Skeleton";
 import { Reveal } from "@/components/motion/Reveal";
+import { useI18n } from "@/i18n/LocaleProvider";
+import { roleLabel } from "@/i18n/enumLabels";
 
 type PageState =
   | { status: "loading" }
@@ -24,10 +26,11 @@ type PageState =
   | { status: "error" }
   | { status: "ready"; overview: WorkspaceOverview };
 
-export default function WorkspaceOverviewPage(props: PageProps<"/workspaces/[workspaceId]">) {
+export default function WorkspaceOverviewPage(props: PageProps<"/[lang]/workspaces/[workspaceId]">) {
   const { workspaceId } = use(props.params);
   const { status: authStatus, user } = useAuth();
   const router = useRouter();
+  const { dict, href } = useI18n();
   const [state, setState] = useState<PageState>({ status: "loading" });
 
   const fetchState = useCallback(async (): Promise<PageState> => {
@@ -50,9 +53,9 @@ export default function WorkspaceOverviewPage(props: PageProps<"/workspaces/[wor
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
-      router.replace("/login");
+      router.replace(href("/login"));
     }
-  }, [authStatus, router]);
+  }, [authStatus, router, href]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") {
@@ -77,7 +80,7 @@ export default function WorkspaceOverviewPage(props: PageProps<"/workspaces/[wor
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
       <AppShell maxWidth="xl">
-        <SkeletonBlock label="Loading your account…" />
+        <SkeletonBlock label={dict.nav.loadingAccount} />
       </AppShell>
     );
   }
@@ -88,11 +91,11 @@ export default function WorkspaceOverviewPage(props: PageProps<"/workspaces/[wor
 
       {state.status === "not-found" && (
         <FailurePanel
-          title="Workspace unavailable"
-          description="This workspace doesn't exist, or you don't have access to it."
+          title={dict.workspaces.unavailableTitle}
+          description={dict.workspaces.unavailableDescription}
           action={
-            <Link href="/dashboard" className="text-sm font-medium text-brand hover:underline">
-              Back to your workspaces
+            <Link href={href("/dashboard")} className="text-sm font-medium text-brand hover:underline">
+              {dict.workspaces.backToWorkspaces}
             </Link>
           }
         />
@@ -100,15 +103,11 @@ export default function WorkspaceOverviewPage(props: PageProps<"/workspaces/[wor
 
       {(state.status === "unavailable" || state.status === "error") && (
         <FailurePanel
-          title={state.status === "unavailable" ? "Hireflow is unreachable" : "Something went wrong"}
-          description={
-            state.status === "unavailable"
-              ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
-              : "Something went wrong loading this workspace."
-          }
+          title={state.status === "unavailable" ? dict.workspaces.unreachableTitle : dict.workspaces.errorTitle}
+          description={state.status === "unavailable" ? dict.common.apiUnavailable : dict.workspaces.loadFailed}
           action={
             <Button variant="primary" size="sm" onClick={retry}>
-              Try again
+              {dict.common.tryAgain}
             </Button>
           }
         />
@@ -140,9 +139,10 @@ function FailurePanel({
 }
 
 function OverviewSkeleton() {
+  const { dict } = useI18n();
   return (
     <div className="flex flex-col gap-8">
-      <p className="text-sm text-text-muted">Loading workspace overview…</p>
+      <p className="text-sm text-text-muted">{dict.workspaces.loadingOverview}</p>
       <div aria-hidden="true" className="flex flex-col gap-8">
         <div className="flex items-center gap-4">
           <Skeleton className="h-12 w-12 rounded-lg" />
@@ -163,6 +163,8 @@ function OverviewSkeleton() {
 }
 
 function WorkspaceOverviewContent({ overview }: { overview: WorkspaceOverview }) {
+  const { dict, href } = useI18n();
+
   return (
     <Reveal className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -172,7 +174,7 @@ function WorkspaceOverviewContent({ overview }: { overview: WorkspaceOverview })
             <h1 className="text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">{overview.name}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand-strong">
-                {overview.role}
+                {roleLabel(dict, overview.role)}
               </span>
               <span className="text-sm text-text-muted">/{overview.slug}</span>
             </div>
@@ -180,10 +182,10 @@ function WorkspaceOverviewContent({ overview }: { overview: WorkspaceOverview })
         </div>
 
         <Link
-          href={`/workspaces/${overview.workspaceId}/jobs`}
+          href={href(`/workspaces/${overview.workspaceId}/jobs`)}
           className="inline-flex items-center justify-center rounded-lg border border-border-strong px-3.5 py-1.5 text-sm font-medium text-text-secondary transition hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
-          View jobs
+          {dict.workspaces.viewJobs}
         </Link>
       </div>
 
@@ -198,7 +200,7 @@ function WorkspaceOverviewContent({ overview }: { overview: WorkspaceOverview })
       <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
         <section aria-labelledby="active-jobs-heading" className="lg:col-span-7">
           <h2 id="active-jobs-heading" className="text-sm font-semibold text-text-primary">
-            Active jobs
+            {dict.workspaces.activeJobs}
           </h2>
           <div className="mt-3">
             <JobWorkloadList workspaceId={overview.workspaceId} workload={overview.workload} />
@@ -207,7 +209,7 @@ function WorkspaceOverviewContent({ overview }: { overview: WorkspaceOverview })
 
         <section aria-labelledby="recent-activity-heading" className="lg:col-span-5">
           <h2 id="recent-activity-heading" className="text-sm font-semibold text-text-primary">
-            Recent activity
+            {dict.workspaces.recentActivity}
           </h2>
           <div className="mt-3">
             <RecentActivityFeed workspaceId={overview.workspaceId} activity={overview.recentActivity} />

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
 import { createWorkspace, type WorkspaceDetail } from "@/lib/api/workspaces";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 type WorkspaceCreateFormProps = {
   onCreated: (workspace: WorkspaceDetail) => void;
@@ -14,6 +15,7 @@ type WorkspaceCreateFormProps = {
 };
 
 export function WorkspaceCreateForm({ onCreated, onSubmittingChange }: WorkspaceCreateFormProps) {
+  const { dict } = useI18n();
   const [name, setName] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -36,12 +38,12 @@ export function WorkspaceCreateForm({ onCreated, onSubmittingChange }: Workspace
       onCreated(workspace);
     } catch (error) {
       if (error instanceof ApiUnavailableError) {
-        setFormError(error.message);
+        setFormError(dict.common.apiUnavailable);
       } else if (error instanceof ApiError) {
         setFieldErrors(error.fieldErrors);
-        setFormError(Object.keys(error.fieldErrors).length === 0 ? error.message : null);
+        setFormError(Object.keys(error.fieldErrors).length === 0 ? dict.errors.validation_error : null);
       } else {
-        setFormError("Something went wrong. Please try again.");
+        setFormError(dict.common.genericError);
       }
     } finally {
       updateSubmitting(false);
@@ -58,7 +60,7 @@ export function WorkspaceCreateForm({ onCreated, onSubmittingChange }: Workspace
 
       <FormField
         id="workspaceName"
-        label="Workspace name"
+        label={dict.dashboard.workspaceNameLabel}
         type="text"
         value={name}
         onChange={setName}
@@ -68,7 +70,7 @@ export function WorkspaceCreateForm({ onCreated, onSubmittingChange }: Workspace
       />
 
       <Button type="submit" variant="primary" disabled={isSubmitting} className="mt-2">
-        {isSubmitting ? "Creating workspace…" : "Create workspace"}
+        {isSubmitting ? dict.dashboard.creatingWorkspace : dict.dashboard.createWorkspace}
       </Button>
     </form>
   );

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
 import { ApiError, ApiUnavailableError } from "@/lib/api/client";
 import { createInvitation, type CreatedInvitation, type InvitableRole } from "@/lib/api/workspaces";
+import { useI18n } from "@/i18n/LocaleProvider";
+import { roleLabel } from "@/i18n/enumLabels";
 
 type InviteMemberFormProps = {
   workspaceId: string;
@@ -13,6 +15,7 @@ type InviteMemberFormProps = {
 };
 
 export function InviteMemberForm({ workspaceId, onCreated }: InviteMemberFormProps) {
+  const { dict } = useI18n();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<InvitableRole>("Recruiter");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -31,12 +34,12 @@ export function InviteMemberForm({ workspaceId, onCreated }: InviteMemberFormPro
       onCreated(invitation);
     } catch (error) {
       if (error instanceof ApiUnavailableError) {
-        setFormError(error.message);
+        setFormError(dict.common.apiUnavailable);
       } else if (error instanceof ApiError) {
         setFieldErrors(error.fieldErrors);
-        setFormError(Object.keys(error.fieldErrors).length === 0 ? error.message : null);
+        setFormError(Object.keys(error.fieldErrors).length === 0 ? dict.errors.validation_error : null);
       } else {
-        setFormError("Something went wrong. Please try again.");
+        setFormError(dict.common.genericError);
       }
     } finally {
       setIsSubmitting(false);
@@ -53,7 +56,7 @@ export function InviteMemberForm({ workspaceId, onCreated }: InviteMemberFormPro
 
       <FormField
         id="inviteEmail"
-        label="Email"
+        label={dict.invitations.fieldEmail}
         type="email"
         value={email}
         onChange={setEmail}
@@ -64,7 +67,7 @@ export function InviteMemberForm({ workspaceId, onCreated }: InviteMemberFormPro
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="inviteRole" className="text-sm font-medium text-text-primary">
-          Role
+          {dict.invitations.fieldRole}
         </label>
         <select
           id="inviteRole"
@@ -73,13 +76,13 @@ export function InviteMemberForm({ workspaceId, onCreated }: InviteMemberFormPro
           disabled={isSubmitting}
           className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand-soft disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
         >
-          <option value="Recruiter">Recruiter</option>
-          <option value="Interviewer">Interviewer</option>
+          <option value="Recruiter">{roleLabel(dict, "Recruiter")}</option>
+          <option value="Interviewer">{roleLabel(dict, "Interviewer")}</option>
         </select>
       </div>
 
       <Button type="submit" variant="primary" disabled={isSubmitting} className="mt-2">
-        {isSubmitting ? "Sending invitation…" : "Invite"}
+        {isSubmitting ? dict.invitations.sendingInvitation : dict.invitations.sendInvitation}
       </Button>
     </form>
   );

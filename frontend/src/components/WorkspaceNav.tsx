@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
+import { useI18n } from "@/i18n/LocaleProvider";
+import { stripLocale } from "@/i18n/routing";
 
 type WorkspaceNavProps = {
   workspaceId: string;
@@ -10,19 +12,23 @@ type WorkspaceNavProps = {
 
 export function WorkspaceNav({ workspaceId }: WorkspaceNavProps) {
   const pathname = usePathname();
-  const overviewHref = `/workspaces/${workspaceId}`;
-  const jobsHref = `/workspaces/${workspaceId}/jobs`;
-  const membersHref = `/workspaces/${workspaceId}/members`;
-  const isJobs = pathname?.startsWith(jobsHref) ?? false;
-  const isMembers = pathname?.startsWith(membersHref) ?? false;
+  const { dict, href } = useI18n();
+  const localeFreePathname = pathname ? stripLocale(pathname) : "";
+
+  const overviewPath = `/workspaces/${workspaceId}`;
+  const jobsPath = `/workspaces/${workspaceId}/jobs`;
+  const membersPath = `/workspaces/${workspaceId}/members`;
+
+  const isJobs = localeFreePathname.startsWith(jobsPath);
+  const isMembers = localeFreePathname.startsWith(membersPath);
   const isOverview = !isJobs && !isMembers;
 
   return (
-    <nav aria-label="Workspace" className="-mx-1 overflow-x-auto">
+    <nav aria-label={dict.a11y.workspaceNav} className="-mx-1 overflow-x-auto">
       <div className="flex min-w-max gap-1 border-b border-border px-1">
-        <Tab href={overviewHref} label="Overview" active={isOverview} />
-        <Tab href={jobsHref} label="Jobs" active={isJobs} />
-        <Tab href={membersHref} label="Members" active={isMembers} />
+        <Tab href={href(overviewPath)} label={dict.nav.workspaceOverview} active={isOverview} />
+        <Tab href={href(jobsPath)} label={dict.nav.workspaceJobs} active={isJobs} />
+        <Tab href={href(membersPath)} label={dict.nav.workspaceMembers} active={isMembers} />
       </div>
     </nav>
   );

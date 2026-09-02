@@ -19,6 +19,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { Reveal } from "@/components/motion/Reveal";
 import { collapsePanel, fadeIn, staggerContainer, staggerItem } from "@/lib/motion";
+import { useI18n } from "@/i18n/LocaleProvider";
+import { jobStatusLabel, roleLabel } from "@/i18n/enumLabels";
+import type { Dictionary } from "@/i18n/dictionaries";
 
 type StatusFilter = JobStatus | "All";
 
@@ -31,10 +34,11 @@ type PageState =
 
 const FILTERS: StatusFilter[] = ["All", "Draft", "Open", "Closed"];
 
-export default function WorkspaceJobsPage(props: PageProps<"/workspaces/[workspaceId]/jobs">) {
+export default function WorkspaceJobsPage(props: PageProps<"/[lang]/workspaces/[workspaceId]/jobs">) {
   const { workspaceId } = use(props.params);
   const { status: authStatus, user } = useAuth();
   const router = useRouter();
+  const { dict, href } = useI18n();
   const [state, setState] = useState<PageState>({ status: "loading" });
   const [filter, setFilter] = useState<StatusFilter>("All");
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -68,9 +72,9 @@ export default function WorkspaceJobsPage(props: PageProps<"/workspaces/[workspa
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
-      router.replace("/login");
+      router.replace(href("/login"));
     }
-  }, [authStatus, router]);
+  }, [authStatus, router, href]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") {
@@ -92,7 +96,7 @@ export default function WorkspaceJobsPage(props: PageProps<"/workspaces/[workspa
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
       <AppShell maxWidth="xl">
-        <SkeletonBlock label="Loading your account…" />
+        <SkeletonBlock label={dict.nav.loadingAccount} />
       </AppShell>
     );
   }
@@ -109,7 +113,7 @@ export default function WorkspaceJobsPage(props: PageProps<"/workspaces/[workspa
         onCreateCancel={() => setShowCreateForm(false)}
         onCreated={(job) => {
           setShowCreateForm(false);
-          router.push(`/workspaces/${job.workspaceId}/jobs/${job.id}`);
+          router.push(href(`/workspaces/${job.workspaceId}/jobs/${job.id}`));
         }}
       />
     </AppShell>
@@ -135,19 +139,19 @@ function JobsContent({
   onCreateCancel: () => void;
   onCreated: (job: JobOpening) => void;
 }) {
+  const { dict, href, formatDate } = useI18n();
+
   if (state.status === "loading") {
-    return <SkeletonBlock label="Loading jobs…" />;
+    return <SkeletonBlock label={dict.jobs.loadingJobs} />;
   }
 
   if (state.status === "not-found") {
     return (
       <div className="max-w-md">
-        <h1 className="text-xl font-semibold text-text-primary">Workspace unavailable</h1>
-        <p className="mt-2 text-sm text-text-secondary">
-          This workspace doesn&apos;t exist, or you don&apos;t have access to it.
-        </p>
-        <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
-          Back to your workspaces
+        <h1 className="text-xl font-semibold text-text-primary">{dict.workspaces.unavailableTitle}</h1>
+        <p className="mt-2 text-sm text-text-secondary">{dict.workspaces.unavailableDescription}</p>
+        <Link href={href("/dashboard")} className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
+          {dict.workspaces.backToWorkspaces}
         </Link>
       </div>
     );
@@ -157,12 +161,10 @@ function JobsContent({
     return (
       <div className="flex max-w-md flex-col items-start gap-3">
         <p className="text-sm text-text-secondary">
-          {state.status === "unavailable"
-            ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
-            : "Something went wrong loading jobs."}
+          {state.status === "unavailable" ? dict.common.apiUnavailable : dict.jobs.loadFailed}
         </p>
         <Button variant="primary" size="sm" onClick={onRetry}>
-          Try again
+          {dict.common.tryAgain}
         </Button>
       </div>
     );
@@ -173,12 +175,12 @@ function JobsContent({
 
   return (
     <Reveal className="flex flex-col gap-8">
-      <PageHeader eyebrow={workspace.role} title={workspace.name} />
+      <PageHeader eyebrow={roleLabel(dict, workspace.role)} title={workspace.name} />
 
       <WorkspaceNav workspaceId={workspace.id} />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div role="group" aria-label="Filter jobs by status" className="flex gap-1 overflow-x-auto">
+        <div role="group" aria-label={dict.jobs.filterGroupLabel} className="flex gap-1 overflow-x-auto">
           {FILTERS.map((option) => (
             <button
               key={option}
@@ -189,14 +191,14 @@ function JobsContent({
                 filter === option ? "bg-slate-900 text-white" : "bg-surface-muted text-text-secondary hover:bg-border"
               }`}
             >
-              {option}
+              {option === "All" ? dict.jobs.filterAll : jobStatusLabel(dict, option)}
             </button>
           ))}
         </div>
 
         {canManage && !showCreateForm ? (
           <Button variant="primary" size="sm" onClick={onCreateClick}>
-            New job
+            {dict.jobs.newJob}
           </Button>
         ) : null}
       </div>
@@ -204,7 +206,7 @@ function JobsContent({
       <AnimatePresence initial={false}>
         {showCreateForm ? (
           <motion.div key="create-job" variants={collapsePanel} initial="hidden" animate="show" exit="exit">
-            <CreateJobPanel workspaceId={workspace.id} onCreated={onCreated} onCancel={onCreateCancel} />
+            <CreateJobPanel workspaceId={workspace.id} onCreated={onCreated} onCancel={onCreateCancel} dict={dict} />
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -213,12 +215,8 @@ function JobsContent({
         <motion.div key={filter + jobs.length} variants={fadeIn} initial="hidden" animate="show" exit="exit">
           {jobs.length === 0 ? (
             <EmptyState
-              title={filter === "All" ? "No job openings yet" : `No ${filter.toLowerCase()} jobs`}
-              description={
-                canManage
-                  ? "Create a job opening to start building a candidate pipeline."
-                  : undefined
-              }
+              title={filter === "All" ? dict.jobs.emptyAllTitle : dict.jobs.emptyFilteredTitle(jobStatusLabel(dict, filter).toLowerCase())}
+              description={canManage ? dict.jobs.emptyDescriptionManage : undefined}
             />
           ) : (
             <motion.ul
@@ -230,13 +228,13 @@ function JobsContent({
               {jobs.map((job) => (
                 <motion.li key={job.id} variants={staggerItem}>
                   <Link
-                    href={`/workspaces/${workspace.id}/jobs/${job.id}`}
+                    href={href(`/workspaces/${workspace.id}/jobs/${job.id}`)}
                     className="flex items-center justify-between gap-4 px-4 py-3 transition hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
                   >
                     <div>
                       <p className="text-sm font-medium text-text-primary">{job.title}</p>
                       <p className="mt-0.5 text-xs text-text-muted">
-                        Updated {new Date(job.updatedAt).toLocaleDateString()}
+                        {dict.jobs.updated} {formatDate(job.updatedAt)}
                       </p>
                     </div>
                     <JobStatusBadge status={job.status} />
@@ -255,19 +253,21 @@ function CreateJobPanel({
   workspaceId,
   onCreated,
   onCancel,
+  dict,
 }: {
   workspaceId: string;
   onCreated: (job: JobOpening) => void;
   onCancel: () => void;
+  dict: Dictionary;
 }) {
   return (
     <Card className="p-4">
-      <h2 className="text-sm font-semibold text-text-primary">New job</h2>
-      <p className="mt-1 text-sm text-text-muted">New jobs start as Draft.</p>
+      <h2 className="text-sm font-semibold text-text-primary">{dict.jobs.createJobHeading}</h2>
+      <p className="mt-1 text-sm text-text-muted">{dict.jobs.createJobHint}</p>
       <div className="mt-4">
         <JobDetailsForm
-          submitLabel="Create job"
-          submittingLabel="Creating…"
+          submitLabel={dict.jobs.createJobSubmit}
+          submittingLabel={dict.jobs.createJobSubmitting}
           onCancel={onCancel}
           onSubmit={async ({ title, description }) => {
             try {
@@ -278,9 +278,9 @@ function CreateJobPanel({
                 throw error;
               }
               if (error instanceof ApiError) {
-                throw new Error(error.fieldErrors.Title?.[0] ?? error.message);
+                throw new Error(error.fieldErrors.Title?.[0] ?? dict.errors.validation_error);
               }
-              throw new Error("Something went wrong. Please try again.");
+              throw new Error(dict.common.genericError);
             }
           }}
         />

@@ -24,6 +24,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { Reveal } from "@/components/motion/Reveal";
+import { useI18n } from "@/i18n/LocaleProvider";
+import { roleLabel } from "@/i18n/enumLabels";
 
 type PageState =
   | { status: "loading" }
@@ -37,10 +39,11 @@ type PageState =
       invitations: PendingInvitation[] | null;
     };
 
-export default function WorkspaceMembersPage(props: PageProps<"/workspaces/[workspaceId]/members">) {
+export default function WorkspaceMembersPage(props: PageProps<"/[lang]/workspaces/[workspaceId]/members">) {
   const { workspaceId } = use(props.params);
   const { status: authStatus, user } = useAuth();
   const router = useRouter();
+  const { dict, href } = useI18n();
   const [state, setState] = useState<PageState>({ status: "loading" });
   const [justCreated, setJustCreated] = useState<CreatedInvitation | null>(null);
 
@@ -77,9 +80,9 @@ export default function WorkspaceMembersPage(props: PageProps<"/workspaces/[work
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
-      router.replace("/login");
+      router.replace(href("/login"));
     }
-  }, [authStatus, router]);
+  }, [authStatus, router, href]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") {
@@ -101,7 +104,7 @@ export default function WorkspaceMembersPage(props: PageProps<"/workspaces/[work
   if (authStatus === "loading" || authStatus === "unauthenticated" || !user) {
     return (
       <AppShell maxWidth="xl">
-        <SkeletonBlock label="Loading your account…" />
+        <SkeletonBlock label={dict.nav.loadingAccount} />
       </AppShell>
     );
   }
@@ -141,19 +144,19 @@ function WorkspaceContent({
   onDismissJustCreated: () => void;
   onMutated: () => void;
 }) {
+  const { dict, href } = useI18n();
+
   if (state.status === "loading") {
-    return <SkeletonBlock label="Loading workspace…" />;
+    return <SkeletonBlock label={dict.members.loadingWorkspace} />;
   }
 
   if (state.status === "not-found") {
     return (
       <div className="max-w-md">
-        <h1 className="text-xl font-semibold text-text-primary">Workspace unavailable</h1>
-        <p className="mt-2 text-sm text-text-secondary">
-          This workspace doesn&apos;t exist, or you don&apos;t have access to it.
-        </p>
-        <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
-          Back to your workspaces
+        <h1 className="text-xl font-semibold text-text-primary">{dict.members.unavailableTitle}</h1>
+        <p className="mt-2 text-sm text-text-secondary">{dict.members.unavailableDescription}</p>
+        <Link href={href("/dashboard")} className="mt-4 inline-block text-sm font-medium text-brand hover:underline">
+          {dict.workspaces.backToWorkspaces}
         </Link>
       </div>
     );
@@ -163,12 +166,10 @@ function WorkspaceContent({
     return (
       <div className="flex max-w-md flex-col items-start gap-3">
         <p className="text-sm text-text-secondary">
-          {state.status === "unavailable"
-            ? "Hireflow can't reach the API right now. Check that the backend is running and try again."
-            : "Something went wrong loading this workspace."}
+          {state.status === "unavailable" ? dict.common.apiUnavailable : dict.members.loadFailed}
         </p>
         <Button variant="primary" size="sm" onClick={onRetry}>
-          Try again
+          {dict.common.tryAgain}
         </Button>
       </div>
     );
@@ -179,13 +180,13 @@ function WorkspaceContent({
 
   return (
     <Reveal className="flex flex-col gap-8">
-      <PageHeader eyebrow={workspace.role} title={workspace.name} description={`/${workspace.slug}`} />
+      <PageHeader eyebrow={roleLabel(dict, workspace.role)} title={workspace.name} description={`/${workspace.slug}`} />
 
       <WorkspaceNav workspaceId={workspace.id} />
 
       <div className={isOwner ? "grid gap-10 lg:grid-cols-2 lg:items-start" : "flex flex-col gap-8"}>
         <div>
-          <h2 className="text-sm font-semibold text-text-primary">Members</h2>
+          <h2 className="text-sm font-semibold text-text-primary">{dict.members.members}</h2>
           <div className="mt-3">
             <MembersList
               workspaceId={workspace.id}
@@ -200,7 +201,7 @@ function WorkspaceContent({
         {isOwner ? (
           <div className="flex flex-col gap-8">
             <div>
-              <h2 className="text-sm font-semibold text-text-primary">Invite someone</h2>
+              <h2 className="text-sm font-semibold text-text-primary">{dict.members.inviteSomeone}</h2>
               <div className="mt-3 flex flex-col gap-4">
                 {justCreated ? (
                   <OneTimeInvitationLink invitation={justCreated} onDismiss={onDismissJustCreated} />
@@ -211,7 +212,7 @@ function WorkspaceContent({
             </div>
 
             <div>
-              <h2 className="text-sm font-semibold text-text-primary">Pending invitations</h2>
+              <h2 className="text-sm font-semibold text-text-primary">{dict.members.pendingInvitations}</h2>
               <div className="mt-3">
                 <PendingInvitationsList
                   workspaceId={workspace.id}

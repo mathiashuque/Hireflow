@@ -5,13 +5,17 @@ import type { CandidateStageCounts, JobCounts } from "@/lib/api/overview";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { Card } from "@/components/ui/Card";
 import { CandidatePipelineBar } from "@/components/CandidatePipelineBar";
+import { useI18n } from "@/i18n/LocaleProvider";
+import type { Dictionary } from "@/i18n/dictionaries";
 
-const KPIS: { key: "total" | keyof JobCounts; label: string; dotClass: string }[] = [
-  { key: "total", label: "Total candidates", dotClass: "bg-brand" },
-  { key: "open", label: "Open jobs", dotClass: "bg-emerald-500" },
-  { key: "draft", label: "Draft jobs", dotClass: "bg-slate-400" },
-  { key: "closed", label: "Closed jobs", dotClass: "bg-slate-400" },
-];
+function kpis(dict: Dictionary): { key: "total" | keyof JobCounts; label: string; dotClass: string }[] {
+  return [
+    { key: "total", label: dict.workspaces.totalCandidates, dotClass: "bg-brand" },
+    { key: "open", label: dict.workspaces.openJobs, dotClass: "bg-emerald-500" },
+    { key: "draft", label: dict.workspaces.draftJobs, dotClass: "bg-slate-400" },
+    { key: "closed", label: dict.workspaces.closedJobs, dotClass: "bg-slate-400" },
+  ];
+}
 
 export function OverviewMetricsCards({
   jobCounts,
@@ -22,10 +26,12 @@ export function OverviewMetricsCards({
   totalCandidates: number;
   candidateCounts: CandidateStageCounts;
 }) {
+  const { dict } = useI18n();
+
   return (
     <section aria-labelledby="workspace-summary-heading">
       <h2 id="workspace-summary-heading" className="text-sm font-semibold text-text-primary">
-        Workspace summary
+        {dict.workspaces.summaryHeading}
       </h2>
 
       <Card className="mt-3 p-5 sm:p-6">
@@ -35,7 +41,7 @@ export function OverviewMetricsCards({
           variants={staggerContainer}
           className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4"
         >
-          {KPIS.map((kpi) => (
+          {kpis(dict).map((kpi) => (
             <motion.div key={kpi.key} variants={staggerItem}>
               <dt className="flex items-center gap-1.5 text-xs font-medium text-text-muted">
                 <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${kpi.dotClass}`} />
@@ -50,7 +56,9 @@ export function OverviewMetricsCards({
 
         <div className="my-5 border-t border-border" aria-hidden="true" />
 
-        <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">Candidate pipeline</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">
+          {dict.workspaces.candidatePipeline}
+        </h3>
         <div className="mt-3">
           <CandidatePipelineBar total={totalCandidates} counts={candidateCounts} size="md" />
         </div>

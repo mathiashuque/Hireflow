@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { AnimatedStatus, StatusBanner } from "@/components/ui/StatusBanner";
+import { useI18n } from "@/i18n/LocaleProvider";
 
 type CandidateDetailsFormProps = {
   initialName?: string;
@@ -24,6 +25,7 @@ export function CandidateDetailsForm({
   onCancel,
   onSubmittingChange,
 }: CandidateDetailsFormProps) {
+  const { dict } = useI18n();
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
   const [formError, setFormError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function CandidateDetailsForm({
     try {
       await onSubmit({ name, email });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      const message = error instanceof Error ? error.message : dict.common.genericError;
       setFormError(message);
     } finally {
       updateSubmitting(false);
@@ -59,7 +61,7 @@ export function CandidateDetailsForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="candidateName" className="text-sm font-medium text-text-primary">
-          Name
+          {dict.candidates.fieldName}
         </label>
         <input
           id="candidateName"
@@ -73,7 +75,7 @@ export function CandidateDetailsForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="candidateEmail" className="text-sm font-medium text-text-primary">
-          Email
+          {dict.candidates.fieldEmail}
         </label>
         <input
           id="candidateEmail"
@@ -92,7 +94,7 @@ export function CandidateDetailsForm({
         </Button>
         {onCancel ? (
           <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
+            {dict.common.cancel}
           </Button>
         ) : null}
       </div>
