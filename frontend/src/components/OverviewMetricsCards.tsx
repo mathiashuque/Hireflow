@@ -3,19 +3,14 @@
 import { motion } from "motion/react";
 import type { CandidateStageCounts, JobCounts } from "@/lib/api/overview";
 import { staggerContainer, staggerItem } from "@/lib/motion";
+import { Card } from "@/components/ui/Card";
+import { CandidatePipelineBar } from "@/components/CandidatePipelineBar";
 
-const JOB_METRICS: { key: keyof JobCounts; label: string }[] = [
-  { key: "open", label: "Open jobs" },
-  { key: "draft", label: "Draft jobs" },
-  { key: "closed", label: "Closed jobs" },
-];
-
-const STAGE_METRICS: { key: keyof CandidateStageCounts; label: string }[] = [
-  { key: "applied", label: "Applied" },
-  { key: "screening", label: "Screening" },
-  { key: "interview", label: "Interview" },
-  { key: "offer", label: "Offer" },
-  { key: "rejected", label: "Rejected" },
+const KPIS: { key: "total" | keyof JobCounts; label: string; dotClass: string }[] = [
+  { key: "total", label: "Total candidates", dotClass: "bg-brand" },
+  { key: "open", label: "Open jobs", dotClass: "bg-emerald-500" },
+  { key: "draft", label: "Draft jobs", dotClass: "bg-slate-400" },
+  { key: "closed", label: "Closed jobs", dotClass: "bg-slate-400" },
 ];
 
 export function OverviewMetricsCards({
@@ -28,48 +23,38 @@ export function OverviewMetricsCards({
   candidateCounts: CandidateStageCounts;
 }) {
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-sm font-semibold text-text-primary">Jobs</h2>
-        <motion.dl
-          initial="hidden"
-          animate="show"
-          variants={staggerContainer}
-          className="mt-2 grid grid-cols-3 gap-3 sm:max-w-md"
-        >
-          {JOB_METRICS.map((metric) => (
-            <motion.div
-              key={metric.key}
-              variants={staggerItem}
-              className="rounded-lg border border-border bg-surface px-3 py-2.5"
-            >
-              <dt className="text-xs font-medium text-text-muted">{metric.label}</dt>
-              <dd className="mt-1 text-xl font-semibold text-text-primary">{jobCounts[metric.key]}</dd>
-            </motion.div>
-          ))}
-        </motion.dl>
-      </div>
+    <section aria-labelledby="workspace-summary-heading">
+      <h2 id="workspace-summary-heading" className="text-sm font-semibold text-text-primary">
+        Workspace summary
+      </h2>
 
-      <div>
-        <h2 className="text-sm font-semibold text-text-primary">Candidate pipeline · {totalCandidates} total</h2>
+      <Card className="mt-3 p-5 sm:p-6">
         <motion.dl
           initial="hidden"
           animate="show"
           variants={staggerContainer}
-          className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-5"
+          className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4"
         >
-          {STAGE_METRICS.map((metric) => (
-            <motion.div
-              key={metric.key}
-              variants={staggerItem}
-              className="rounded-lg border border-border bg-surface px-3 py-2.5"
-            >
-              <dt className="text-xs font-medium text-text-muted">{metric.label}</dt>
-              <dd className="mt-1 text-xl font-semibold text-text-primary">{candidateCounts[metric.key]}</dd>
+          {KPIS.map((kpi) => (
+            <motion.div key={kpi.key} variants={staggerItem}>
+              <dt className="flex items-center gap-1.5 text-xs font-medium text-text-muted">
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${kpi.dotClass}`} />
+                {kpi.label}
+              </dt>
+              <dd className="mt-1.5 text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
+                {kpi.key === "total" ? totalCandidates : jobCounts[kpi.key]}
+              </dd>
             </motion.div>
           ))}
         </motion.dl>
-      </div>
-    </div>
+
+        <div className="my-5 border-t border-border" aria-hidden="true" />
+
+        <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-text-muted">Candidate pipeline</h3>
+        <div className="mt-3">
+          <CandidatePipelineBar total={totalCandidates} counts={candidateCounts} size="md" />
+        </div>
+      </Card>
+    </section>
   );
 }
